@@ -1,0 +1,3132 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0d1117" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>FleetFlow — Gestão Financeira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-2: #0a0e15;
+    --surface: #161b26;
+    --surface-2: #1d2330;
+    --surface-3: #252b3b;
+    --border: #252b3b;
+    --border-soft: #1f2532;
+    --text: #f1f5f9;
+    --text-muted: #8b95a8;
+    --text-dim: #5c6678;
+
+    --primary: #8b5cf6;
+    --primary-2: #a855f7;
+    --pink: #ec4899;
+    --rose: #f43f5e;
+    --orange: #f97316;
+    --amber: #f59e0b;
+    --cyan: #06b6d4;
+    --blue: #3b82f6;
+    --green: #10b981;
+    --emerald: #34d399;
+    --red: #ef4444;
+
+    --grad-purple: linear-gradient(135deg, #8b5cf6, #a855f7);
+    --grad-pink: linear-gradient(135deg, #ec4899, #f43f5e);
+    --grad-orange: linear-gradient(135deg, #f97316, #ef4444);
+    --grad-cyan: linear-gradient(135deg, #06b6d4, #3b82f6);
+    --grad-blue: linear-gradient(135deg, #3b82f6, #6366f1);
+    --grad-green: linear-gradient(135deg, #10b981, #06b6d4);
+
+    --shadow: 0 1px 2px rgba(0,0,0,.3);
+    --shadow-lg: 0 20px 40px -12px rgba(0,0,0,.5);
+    --glow-purple: 0 0 40px rgba(139, 92, 246, .3);
+  }
+
+  html.light {
+    --bg: #f5f6fa;
+    --bg-2: #eef0f7;
+    --surface: #ffffff;
+    --surface-2: #f5f6fa;
+    --surface-3: #eef0f7;
+    --border: #e2e5ed;
+    --border-soft: #ebeef4;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --shadow: 0 1px 2px rgba(15,23,42,.06);
+    --shadow-lg: 0 20px 40px -12px rgba(15,23,42,.1);
+    --glow-purple: 0 0 40px rgba(139, 92, 246, .15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .25s, color .25s;
+  }
+
+  /* ───────── View Transitions ripple ───────── */
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+  ::view-transition-old(root) { z-index: 1; }
+  ::view-transition-new(root) { z-index: 2; }
+  html[data-theme-transition='dark']::view-transition-new(root) {
+    animation: theme-ripple-in 600ms cubic-bezier(.22,.61,.36,1) forwards;
+  }
+  html[data-theme-transition='light']::view-transition-old(root) {
+    animation: theme-ripple-out 600ms cubic-bezier(.22,.61,.36,1) forwards;
+    z-index: 2;
+  }
+  html[data-theme-transition='light']::view-transition-new(root) { z-index: 1; }
+  @keyframes theme-ripple-in {
+    from { clip-path: circle(0 at var(--rx,50%) var(--ry,50%)); }
+    to   { clip-path: circle(var(--rr,150vmax) at var(--rx,50%) var(--ry,50%)); }
+  }
+  @keyframes theme-ripple-out {
+    from { clip-path: circle(var(--rr,150vmax) at var(--rx,50%) var(--ry,50%)); }
+    to   { clip-path: circle(0 at var(--rx,50%) var(--ry,50%)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
+  }
+
+  /* ───────── Layout ───────── */
+  .app {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ───────── Sidebar ───────── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border-soft);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px 24px;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -.5px;
+  }
+  .brand-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--grad-purple);
+    display: grid; place-items: center;
+    font-size: 18px;
+    box-shadow: var(--glow-purple);
+  }
+  .brand-text .accent { background: var(--grad-purple); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+  .nav-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    padding: 16px 12px 8px;
+    font-weight: 600;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    transition: all .2s;
+  }
+  .nav-item:hover { background: var(--surface-2); color: var(--text); }
+  .nav-item.active {
+    background: var(--grad-purple);
+    color: #fff;
+    box-shadow: var(--glow-purple);
+  }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  .sidebar-card {
+    margin-top: auto;
+    background: linear-gradient(135deg, rgba(139,92,246,.15), rgba(168,85,247,.05));
+    border: 1px solid rgba(139,92,246,.2);
+    border-radius: 16px;
+    padding: 18px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .sidebar-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at top, rgba(139,92,246,.2), transparent 60%);
+    pointer-events: none;
+  }
+  .sidebar-card-emoji { font-size: 32px; margin-bottom: 8px; position: relative; }
+  .sidebar-card p { font-size: 12px; color: var(--text-muted); line-height: 1.5; position: relative; }
+
+  /* ───────── Main ───────── */
+  .main {
+    padding: 24px 28px;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .welcome {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .welcome-avatar {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    background: var(--grad-purple);
+    display: grid; place-items: center;
+    font-size: 22px;
+  }
+  .welcome h2 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+  .welcome p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .topbar-spacer { flex: 1; }
+
+  .icon-btn-circle {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: grid; place-items: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all .2s;
+    position: relative;
+  }
+  .icon-btn-circle:hover { color: var(--text); background: var(--surface-2); transform: translateY(-1px); }
+  .icon-btn-circle svg { width: 18px; height: 18px; }
+  .icon-btn-circle.has-dot::after {
+    content: '';
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 8px; height: 8px;
+    background: var(--rose);
+    border-radius: 50%;
+    border: 2px solid var(--surface);
+  }
+
+  .topbar-btn {
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: all .2s;
+    font-family: inherit;
+  }
+  .topbar-btn:hover { color: var(--text); background: var(--surface-2); }
+
+  /* ───────── Panels ───────── */
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .panel-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .panel-title { font-size: 22px; font-weight: 700; }
+  .panel-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  .pill-select {
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .pill-select:focus { outline: none; border-color: var(--primary); }
+
+  /* ───────── Cards ───────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 20px;
+    padding: 24px;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .card-title { font-size: 16px; font-weight: 700; }
+
+  /* ───────── Stats ───────── */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) { .dash-grid { grid-template-columns: 1fr; } }
+
+  .stats-row {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 20px;
+    padding: 24px;
+  }
+  .stats-row-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .stat-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    position: relative;
+    transition: transform .2s;
+  }
+  .stat-card:hover { transform: translateY(-2px); }
+
+  .stat-icon-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 18px;
+  }
+  .stat-icon {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: white;
+    font-size: 18px;
+    box-shadow: 0 8px 16px -4px var(--shadow-color, rgba(0,0,0,.3));
+  }
+  .stat-icon.purple { background: var(--grad-purple); --shadow-color: rgba(139,92,246,.4); }
+  .stat-icon.pink   { background: var(--grad-pink);   --shadow-color: rgba(236,72,153,.4); }
+  .stat-icon.cyan   { background: var(--grad-cyan);   --shadow-color: rgba(6,182,212,.4); }
+  .stat-icon.orange { background: var(--grad-orange); --shadow-color: rgba(249,115,22,.4); }
+  .stat-icon.blue   { background: var(--grad-blue);   --shadow-color: rgba(59,130,246,.4); }
+  .stat-icon.green  { background: var(--grad-green);  --shadow-color: rgba(16,185,129,.4); }
+
+  .stat-menu {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 4px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -.5px;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-value.smaller { font-size: 22px; }
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-weight: 500;
+  }
+
+  /* ───────── Gauge card ───────── */
+  .gauge-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 20px;
+    padding: 24px;
+    text-align: center;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .gauge-canvas-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 180px;
+    display: grid;
+    place-items: center;
+  }
+  .gauge-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .gauge-label { font-size: 12px; color: var(--text-muted); }
+  .gauge-value { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
+  .gauge-badge {
+    margin-top: 6px;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .gauge-badge.high { background: rgba(249,115,22,.2); color: var(--orange); }
+  .gauge-badge.mid  { background: rgba(245,158,11,.2); color: var(--amber); }
+  .gauge-badge.low  { background: rgba(16,185,129,.2); color: var(--emerald); }
+  .gauge-badge.bad  { background: rgba(239,68,68,.2);  color: var(--red); }
+  .gauge-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: -8px;
+    padding: 0 12px;
+  }
+
+  /* ───────── Charts ───────── */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+  }
+  @media (max-width: 1100px) { .charts-row { grid-template-columns: 1fr; } }
+
+  .chart-container { position: relative; height: 280px; }
+  .donut-wrap { position: relative; height: 220px; display: grid; place-items: center; }
+  .donut-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .donut-center-label { font-size: 11px; color: var(--text-muted); }
+  .donut-center-value { font-size: 22px; font-weight: 800; }
+  .donut-legend {
+    margin-top: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .donut-legend-item {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px;
+  }
+  .donut-legend-item .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .donut-legend-item .name { flex: 1; color: var(--text-muted); }
+  .donut-legend-item .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ───────── Tables / Forms ───────── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+  }
+  .form-field { display: flex; flex-direction: column; gap: 6px; }
+  .form-field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .form-field input, .form-field select {
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 14px;
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .form-field input:focus, .form-field select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(139,92,246,.2);
+  }
+
+  .form-actions {
+    grid-column: 1 / -1;
+    display: flex; gap: 8px; justify-content: flex-end;
+    margin-top: 4px;
+  }
+
+  .btn {
+    padding: 11px 20px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: inherit;
+    transition: all .2s;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary {
+    background: var(--grad-purple);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 8px 16px -4px rgba(139,92,246,.4);
+  }
+  .btn-primary:hover { box-shadow: 0 12px 24px -4px rgba(139,92,246,.5); }
+  .btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
+  .btn-ghost:hover { color: var(--text); background: var(--surface-2); }
+  .btn-danger { background: var(--rose); color: white; border-color: transparent; }
+
+  .filters {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    margin: 16px 0 14px;
+  }
+  .filters input, .filters select {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+  }
+  .filters input { min-width: 220px; }
+  .filters input:focus, .filters select:focus {
+    outline: none; border-color: var(--primary);
+  }
+
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 20px;
+    padding: 24px;
+    overflow: hidden;
+  }
+  .table-wrapper { overflow-x: auto; margin: 0 -8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 12px 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    border-bottom: 1px solid var(--border-soft);
+    white-space: nowrap;
+  }
+  th svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; opacity: .6; }
+  td {
+    padding: 14px;
+    border-bottom: 1px solid var(--border-soft);
+    white-space: nowrap;
+  }
+  tbody tr { transition: background-color .15s; }
+  tbody tr:hover { background: var(--surface-2); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .empty-state {
+    text-align: center;
+    padding: 56px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .icon { font-size: 44px; margin-bottom: 12px; opacity: .5; }
+
+  .pos { color: var(--emerald); font-weight: 700; }
+  .neg { color: var(--rose); font-weight: 700; }
+  .num { font-variant-numeric: tabular-nums; text-align: right; }
+
+  .tag {
+    background: var(--surface-3);
+    color: var(--text-muted);
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .row-icon-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .row-avatar {
+    width: 32px; height: 32px;
+    border-radius: 10px;
+    background: var(--surface-3);
+    display: grid; place-items: center;
+    font-size: 13px;
+  }
+
+  .icon-btn-trash {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-dim);
+    padding: 6px;
+    border-radius: 8px;
+    transition: all .15s;
+  }
+  .icon-btn-trash:hover { color: var(--rose); background: rgba(239,68,68,.1); }
+
+  /* ───────── Toast ───────── */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 14px 22px;
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg);
+    font-size: 14px;
+    font-weight: 500;
+    transform: translateY(120px);
+    opacity: 0;
+    transition: all .3s;
+    z-index: 200;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: var(--emerald); color: var(--emerald); }
+  .toast.error { border-color: var(--rose); color: var(--rose); }
+
+  /* ───────── Modal ───────── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .modal-backdrop.show { display: flex; animation: fadeIn .15s; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .modal p { color: var(--text-muted); margin-bottom: 20px; font-size: 14px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* ───────── Theme toggle ───────── */
+  .theme-toggle { position: relative; overflow: hidden; }
+  .theme-toggle svg {
+    width: 18px; height: 18px;
+    position: absolute;
+    transition: transform .5s cubic-bezier(.22,.61,.36,1), opacity .3s;
+  }
+  .theme-toggle .icon-sun { transform: rotate(90deg) scale(0); opacity: 0; }
+  .theme-toggle .icon-moon { transform: rotate(0deg) scale(1); opacity: 1; }
+  html.light .theme-toggle .icon-sun { transform: rotate(0deg) scale(1); opacity: 1; }
+  html.light .theme-toggle .icon-moon { transform: rotate(-90deg) scale(0); opacity: 0; }
+
+  /* ───────── Doc links ───────── */
+  .doc-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all .15s;
+    border: 1px solid transparent;
+  }
+  .doc-link:hover {
+    color: var(--text);
+    background: var(--surface-2);
+    border-color: var(--border);
+  }
+  .doc-section { scroll-margin-top: 20px; }
+
+  /* ───────── Scrollbar ───────── */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--surface-3); }
+
+  /* ───────── Demo banner ───────── */
+  .demo-banner {
+    display: none;
+    background: linear-gradient(135deg, rgba(245,158,11,.15), rgba(249,115,22,.1));
+    border: 1px solid rgba(245,158,11,.3);
+    border-radius: 14px;
+    padding: 12px 18px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .demo-banner.show { display: flex; }
+  .demo-banner-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--grad-orange);
+    display: grid; place-items: center;
+    color: white;
+    flex-shrink: 0;
+  }
+  .demo-banner-text { flex: 1; min-width: 200px; }
+  .demo-banner-title { font-weight: 700; font-size: 14px; }
+  .demo-banner-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ───────── Edit banner ───────── */
+  .edit-banner {
+    display: none;
+    background: linear-gradient(135deg, rgba(139,92,246,.15), rgba(168,85,247,.05));
+    border: 1px solid rgba(139,92,246,.3);
+    border-radius: 14px;
+    padding: 12px 18px;
+    margin-bottom: 14px;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .edit-banner.show { display: flex; }
+  .edit-banner-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--grad-purple);
+    display: grid; place-items: center;
+    color: white;
+    flex-shrink: 0;
+  }
+  .edit-banner-text { flex: 1; }
+  .edit-banner-title { font-weight: 700; font-size: 13px; }
+
+  /* ───────── Edit/Delete actions ───────── */
+  .row-actions {
+    display: inline-flex;
+    gap: 4px;
+  }
+  .icon-btn-edit {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-dim);
+    padding: 6px;
+    border-radius: 8px;
+    transition: all .15s;
+  }
+  .icon-btn-edit:hover { color: var(--primary); background: rgba(139,92,246,.1); }
+
+  /* ───────── Mobile ───────── */
+  .menu-toggle {
+    display: none;
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .sidebar-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 40;
+    backdrop-filter: blur(2px);
+  }
+  .sidebar-overlay.show { display: block; }
+
+  /* Tablet */
+  @media (max-width: 1100px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed;
+      left: -280px; top: 0;
+      width: 260px;
+      z-index: 50;
+      transition: left .25s ease;
+    }
+    .sidebar.open { left: 0; box-shadow: var(--shadow-lg); }
+    .menu-toggle { display: grid; }
+  }
+
+  /* Mobile */
+  @media (max-width: 700px) {
+    body { font-size: 14px; }
+    .main { padding: 14px 12px env(safe-area-inset-bottom, 14px); }
+    .topbar { gap: 10px; margin-bottom: 18px; }
+    .welcome { gap: 10px; }
+    .welcome-avatar { width: 40px; height: 40px; font-size: 18px; border-radius: 12px; }
+    .welcome h2 { font-size: 15px; }
+    .welcome p { font-size: 11px; display: none; }
+    .topbar-spacer { display: none; }
+
+    .panel-title { font-size: 18px; }
+    .panel-desc { font-size: 12px; }
+    .panel-title-row { margin-bottom: 14px; }
+
+    .card, .stats-row, .gauge-card, .table-card { padding: 16px; border-radius: 16px; }
+    .card-header { margin-bottom: 14px; }
+
+    .dash-grid { gap: 14px; }
+    .charts-row { gap: 14px; margin-top: 14px; }
+    .chart-container { height: 240px; }
+    .donut-wrap { height: 200px; }
+
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat-card { padding: 14px; border-radius: 14px; }
+    .stat-icon-wrap { margin-bottom: 12px; }
+    .stat-icon { width: 38px; height: 38px; }
+    .stat-icon svg { width: 17px; height: 17px; }
+    .stat-value { font-size: 20px; }
+    .stat-value.smaller { font-size: 18px; }
+    .stat-label { font-size: 11px; }
+
+    .gauge-value { font-size: 30px; }
+
+    /* Form: 1 coluna, inputs maiores pra touch */
+    .form-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .form-field input, .form-field select {
+      padding: 12px 14px;
+      font-size: 16px; /* evita zoom do iOS */
+    }
+    .form-field label { font-size: 10px; }
+    .form-actions { flex-direction: column; gap: 8px; margin-top: 8px; }
+    .form-actions .btn { width: 100%; justify-content: center; padding: 14px; }
+
+    /* Filtros: input ocupa linha inteira */
+    .filters { gap: 8px; }
+    .filters input { width: 100%; min-width: 0; flex: 1 1 100%; padding: 12px 16px; font-size: 15px; }
+    .filters select { flex: 1; padding: 10px 14px; font-size: 14px; }
+    .filters .btn { flex: 1; justify-content: center; }
+
+    /* Pill select do dashboard */
+    .pill-select { width: 100%; padding: 11px 16px; font-size: 14px; }
+    .panel-title-row > div:first-child { flex: 1; }
+    .panel-title-row { align-items: stretch; }
+
+    .btn { padding: 11px 16px; font-size: 13px; }
+
+    /* TABELAS → CARDS no mobile */
+    .table-card { padding: 12px; }
+    .table-wrapper { overflow-x: visible; margin: 0; }
+    .mobile-cards { display: flex; flex-direction: column; gap: 10px; }
+    .table-wrapper table { display: none; }
+    .mobile-cards .empty-state { padding: 32px 16px; }
+
+    .mcard {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mcard-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .mcard-title {
+      display: flex; align-items: center; gap: 10px;
+      flex: 1; min-width: 0;
+    }
+    .mcard-title strong { font-size: 14px; line-height: 1.2; word-break: break-word; }
+    .mcard-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .mcard-route {
+      font-size: 12px; color: var(--text-muted);
+      padding: 6px 10px;
+      background: var(--surface);
+      border-radius: 8px;
+      word-break: break-word;
+    }
+    .mcard-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px 12px;
+      font-size: 12px;
+    }
+    .mcard-grid .l { color: var(--text-muted); }
+    .mcard-grid .v { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+    .mcard-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .mcard-totals {
+      background: var(--surface-3);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .mcard-totals .l { color: var(--text-muted); }
+    .mcard-totals .v { text-align: right; font-variant-numeric: tabular-nums; }
+    .mcard-totals-title {
+      grid-column: 1 / -1;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .icon-btn-trash { padding: 8px; }
+
+    .sidebar-card { padding: 14px; }
+
+    /* docs */
+    .doc-section { padding: 16px !important; }
+    .doc-section h3 { font-size: 16px !important; }
+    .doc-step { padding: 12px !important; }
+  }
+
+  /* Telas muito pequenas (iPhone SE) */
+  @media (max-width: 380px) {
+    .stats-grid { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
+    .welcome-avatar { display: none; }
+    .topbar { gap: 8px; }
+    .icon-btn-circle { width: 40px; height: 40px; }
+    .menu-toggle { width: 40px; height: 40px; }
+  }
+
+  /* Desktop only by default */
+  .mobile-cards { display: none; }
+  @media (max-width: 700px) {
+    .mobile-cards { display: flex; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ────────── SIDEBAR ────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-icon">🚛</div>
+      <div class="brand-text">Fleet<span class="accent">Flow</span></div>
+    </div>
+
+    <div class="nav-section-title">Geral</div>
+    <button class="nav-item active" data-tab="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      Visão Geral
+    </button>
+    <button class="nav-item" data-tab="fretes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      Fretes
+    </button>
+    <button class="nav-item" data-tab="contas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Contas Fixas
+    </button>
+
+    <div class="nav-section-title">Ajuda</div>
+    <button class="nav-item" data-tab="ajuda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Como Usar
+    </button>
+
+    <div class="nav-section-title">Demonstração</div>
+    <button class="nav-item" id="demoToggleBtn" onclick="toggleDemo()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <span id="demoBtnLabel">Ativar Modo Demo</span>
+    </button>
+
+    <div class="nav-section-title">Excel</div>
+    <button class="nav-item" onclick="exportExcel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="19"/><line x1="15" y1="13" x2="9" y2="19"/></svg>
+      Exportar Excel
+    </button>
+    <button class="nav-item" onclick="document.getElementById('importExcelFile').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 12 12 15 15"/><line x1="12" y1="12" x2="12" y2="20"/></svg>
+      Importar Excel
+    </button>
+    <input type="file" id="importExcelFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importExcel(event)" />
+
+    <div class="nav-section-title">Backup JSON</div>
+    <button class="nav-item" onclick="exportData()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar Backup
+    </button>
+    <button class="nav-item" onclick="document.getElementById('importFile').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Importar Backup
+    </button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)" />
+
+    <div class="sidebar-card">
+      <div class="sidebar-card-emoji">⚡</div>
+      <p>Mantenha seus dados em backup. Exporte com frequência!</p>
+    </div>
+  </aside>
+
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- ────────── MAIN ────────── -->
+  <main class="main">
+
+    <!-- Demo banner -->
+    <div class="demo-banner" id="demoBanner">
+      <div class="demo-banner-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </div>
+      <div class="demo-banner-text">
+        <div class="demo-banner-title">Modo Demo Ativo</div>
+        <div class="demo-banner-sub">Você está vendo dados de exemplo. Seus dados originais estão guardados — clique em "Desativar" pra voltar.</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="toggleDemo()" style="padding:8px 16px;">Desativar Demo</button>
+    </div>
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <button class="menu-toggle" onclick="openSidebar()">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="welcome">
+        <div class="welcome-avatar">👋</div>
+        <div>
+          <h2>Olá, gestor!</h2>
+          <p>Acompanhe a saúde financeira da sua transportadora</p>
+        </div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <button class="icon-btn-circle theme-toggle" id="themeToggle" title="Alternar tema">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+
+    <!-- ────────── DASHBOARD ────────── -->
+    <section class="panel active" id="panel-dashboard">
+
+      <div class="panel-title-row">
+        <div>
+          <div class="panel-title">Visão Geral</div>
+          <div class="panel-desc">Resumo financeiro do mês selecionado</div>
+        </div>
+        <select id="monthFilter" class="pill-select" onchange="renderDashboard()"></select>
+      </div>
+
+      <!-- Stats + Gauge -->
+      <div class="dash-grid">
+        <div class="stats-row">
+          <div class="stats-row-header">
+            <div class="card-title">Indicadores do Mês</div>
+            <span class="tag" id="periodTag">Mensal</span>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon-wrap">
+                <div class="stat-icon green">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <button class="stat-menu" title="Receita total recebida em fretes">⋯</button>
+              </div>
+              <div class="stat-value" id="stat-receita">R$ 0</div>
+              <div class="stat-label">Receita de Fretes</div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon-wrap">
+                <div class="stat-icon orange">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 22V8a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v14"/><path d="M3 22h14"/><path d="M17 12h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2"/></svg>
+                </div>
+                <button class="stat-menu" title="Combustível, pedágios, comissões e outros">⋯</button>
+              </div>
+              <div class="stat-value" id="stat-custos-viagem">R$ 0</div>
+              <div class="stat-label">Custos de Viagem</div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon-wrap">
+                <div class="stat-icon pink">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                </div>
+                <button class="stat-menu" title="Aluguel, salários, impostos, etc">⋯</button>
+              </div>
+              <div class="stat-value" id="stat-custos-fixos">R$ 0</div>
+              <div class="stat-label">Custos Fixos</div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon-wrap">
+                <div class="stat-icon cyan">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                </div>
+                <button class="stat-menu" title="Lucro líquido após todos os descontos">⋯</button>
+              </div>
+              <div class="stat-value" id="stat-lucro">R$ 0</div>
+              <div class="stat-label" id="stat-lucro-label">Lucro Líquido</div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon-wrap">
+                <div class="stat-icon purple">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <button class="stat-menu" title="Quantidade de fretes no período">⋯</button>
+              </div>
+              <div class="stat-value smaller" id="stat-fretes-count">0</div>
+              <div class="stat-label">Fretes no mês</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gauge -->
+        <div class="gauge-card">
+          <div class="card-header">
+            <div class="card-title">Saúde Financeira</div>
+            <button class="stat-menu">⋯</button>
+          </div>
+          <div class="gauge-canvas-wrap">
+            <canvas id="chartGauge"></canvas>
+            <div class="gauge-center">
+              <div class="gauge-label">Score</div>
+              <div class="gauge-value" id="gaugeValue">0</div>
+              <div class="gauge-badge" id="gaugeBadge">—</div>
+            </div>
+          </div>
+          <div class="gauge-scale"><span>0</span><span>1000</span></div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="charts-row">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Evolução Mensal</div>
+            <span class="tag">Receita vs Custos</span>
+          </div>
+          <div class="chart-container"><canvas id="chartLine"></canvas></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Distribuição de Custos</div>
+          </div>
+          <div class="donut-wrap">
+            <canvas id="chartDonut"></canvas>
+            <div class="donut-center">
+              <div class="donut-center-label">Total</div>
+              <div class="donut-center-value" id="donutTotal">R$ 0</div>
+            </div>
+          </div>
+          <div class="donut-legend" id="donutLegend"></div>
+        </div>
+      </div>
+
+      <!-- Recent fretes -->
+      <div class="table-card" style="margin-top:20px;">
+        <div class="card-header">
+          <div class="card-title">Fretes Recentes</div>
+          <button class="topbar-btn" onclick="switchTab('fretes')">Ver todos →</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Cliente</th>
+                <th>Motorista</th>
+                <th>Rota</th>
+                <th class="num">Valor</th>
+                <th class="num">Lucro</th>
+              </tr>
+            </thead>
+            <tbody id="recentFretesBody"></tbody>
+          </table>
+        </div>
+        <div class="mobile-cards" id="recentFretesCards"></div>
+      </div>
+    </section>
+
+    <!-- ────────── FRETES ────────── -->
+    <section class="panel" id="panel-fretes">
+      <div class="panel-title-row">
+        <div>
+          <div class="panel-title">Controle de Fretes</div>
+          <div class="panel-desc">Cadastre cada viagem com gastos. O lucro é calculado automaticamente.</div>
+        </div>
+      </div>
+
+      <div class="edit-banner" id="freteEditBanner">
+        <div class="edit-banner-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <div class="edit-banner-text">
+          <div class="edit-banner-title">Editando frete</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cancelEditFrete()">Cancelar edição</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title" id="freteFormTitle">Novo Frete</div>
+        </div>
+        <form id="freteForm" class="form-grid">
+          <div class="form-field"><label>Data</label><input type="date" name="data" required /></div>
+          <div class="form-field"><label>Cliente</label><input type="text" name="cliente" placeholder="Nome do cliente" required /></div>
+          <div class="form-field"><label>Motorista</label><input type="text" name="motorista" placeholder="Nome do motorista" required /></div>
+          <div class="form-field"><label>Origem</label><input type="text" name="origem" placeholder="Cidade — UF" required /></div>
+          <div class="form-field"><label>Destino</label><input type="text" name="destino" placeholder="Cidade — UF" required /></div>
+          <div class="form-field"><label>Valor do Frete (R$)</label><input type="number" name="valor" step="0.01" min="0" required /></div>
+          <div class="form-field"><label>Combustível</label><input type="number" name="combustivel" step="0.01" min="0" /></div>
+          <div class="form-field"><label>Pedágio</label><input type="number" name="pedagio" step="0.01" min="0" /></div>
+          <div class="form-field"><label>Comissão</label><input type="number" name="comissao" step="0.01" min="0" /></div>
+          <div class="form-field"><label>Alimentação</label><input type="number" name="alimentacao" step="0.01" min="0" /></div>
+          <div class="form-field"><label>Outros Gastos</label><input type="number" name="outros" step="0.01" min="0" /></div>
+          <div class="form-field"><label>KM Início (opcional)</label><input type="number" name="kmInicio" step="1" min="0" placeholder="Ex: 125300" /></div>
+          <div class="form-field"><label>KM Fim (opcional)</label><input type="number" name="kmFim" step="1" min="0" placeholder="Ex: 125900" /></div>
+          <div class="form-actions">
+            <button type="reset" class="btn btn-ghost" onclick="cancelEditFrete()">Limpar</button>
+            <button type="submit" class="btn btn-primary" id="freteSubmitBtn">+ Adicionar Frete</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="filters">
+        <input type="text" id="filterFrete" placeholder="🔍 Buscar por cliente, motorista, cidade..." oninput="renderFretes()" />
+        <select id="filterMesFrete" onchange="renderFretes()"><option value="">Todos os meses</option></select>
+        <button class="btn btn-ghost" onclick="clearFreteFilters()">Limpar</button>
+      </div>
+
+      <div class="table-card">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th><th>Cliente</th><th>Motorista</th><th>Rota</th>
+                <th class="num">Frete</th>
+                <th class="num">Combust.</th>
+                <th class="num">Pedágio</th>
+                <th class="num">Comissão</th>
+                <th class="num">Alim.</th>
+                <th class="num">Outros</th>
+                <th class="num">Total Gastos</th>
+                <th class="num">Lucro</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="fretesBody"></tbody>
+            <tfoot id="fretesFoot"></tfoot>
+          </table>
+        </div>
+        <div class="mobile-cards" id="fretesCards"></div>
+      </div>
+    </section>
+
+    <!-- ────────── CONTAS ────────── -->
+    <section class="panel" id="panel-contas">
+      <div class="panel-title-row">
+        <div>
+          <div class="panel-title">Contas Fixas</div>
+          <div class="panel-desc">Despesas mensais recorrentes da empresa.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Nova Conta</div>
+        </div>
+        <form id="contaForm" class="form-grid">
+          <div class="form-field"><label>Data</label><input type="date" name="data" required /></div>
+          <div class="form-field"><label>Descrição</label><input type="text" name="descricao" placeholder="Ex: Aluguel garagem" required /></div>
+          <div class="form-field">
+            <label>Categoria</label>
+            <select name="categoria" required>
+              <option value="">Selecione...</option>
+              <option>Aluguel</option><option>Internet</option><option>Salários</option>
+              <option>Contador</option><option>Impostos</option><option>Manutenção</option>
+              <option>Seguros</option><option>Outros</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Valor (R$)</label><input type="number" name="valor" step="0.01" min="0" required /></div>
+          <div class="form-actions">
+            <button type="reset" class="btn btn-ghost">Limpar</button>
+            <button type="submit" class="btn btn-primary">+ Adicionar Conta</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="filters">
+        <input type="text" id="filterConta" placeholder="🔍 Buscar por descrição ou categoria..." oninput="renderContas()" />
+        <select id="filterMesConta" onchange="renderContas()"><option value="">Todos os meses</option></select>
+        <select id="filterCategoria" onchange="renderContas()"><option value="">Todas as categorias</option></select>
+        <button class="btn btn-ghost" onclick="clearContaFilters()">Limpar</button>
+      </div>
+
+      <div class="table-card">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Data</th><th>Descrição</th><th>Categoria</th><th class="num">Valor</th><th></th></tr>
+            </thead>
+            <tbody id="contasBody"></tbody>
+            <tfoot id="contasFoot"></tfoot>
+          </table>
+        </div>
+        <div class="mobile-cards" id="contasCards"></div>
+      </div>
+    </section>
+
+    <!-- ────────── AJUDA / DOCUMENTAÇÃO ────────── -->
+    <section class="panel" id="panel-ajuda">
+      <div class="panel-title-row">
+        <div>
+          <div class="panel-title">Documentação Completa</div>
+          <div class="panel-desc">Tudo o que você precisa saber pra usar o FleetFlow como um profissional.</div>
+        </div>
+      </div>
+
+      <!-- Sumário -->
+      <div class="card doc-section" style="padding:24px;">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">📑 Sumário</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;font-size:13px;">
+          <a href="#doc-intro" class="doc-link">1. Introdução</a>
+          <a href="#doc-tour" class="doc-link">2. Tour pela interface</a>
+          <a href="#doc-primeiros" class="doc-link">3. Primeiros 30 minutos</a>
+          <a href="#doc-fretes" class="doc-link">4. Cadastrar Fretes</a>
+          <a href="#doc-contas" class="doc-link">5. Cadastrar Contas Fixas</a>
+          <a href="#doc-dashboard" class="doc-link">6. Entendendo o Dashboard</a>
+          <a href="#doc-graficos" class="doc-link">7. Como ler os gráficos</a>
+          <a href="#doc-saude" class="doc-link">8. Saúde Financeira</a>
+          <a href="#doc-rotinas" class="doc-link">9. Rotinas recomendadas</a>
+          <a href="#doc-cenarios" class="doc-link">10. Cenários práticos</a>
+          <a href="#doc-formulas" class="doc-link">11. Fórmulas e cálculos</a>
+          <a href="#doc-glossario" class="doc-link">12. Glossário</a>
+          <a href="#doc-backup" class="doc-link">13. Backup, Excel e segurança</a>
+          <a href="#doc-privacidade" class="doc-link">14. Privacidade e dados</a>
+          <a href="#doc-mobile" class="doc-link">15. Uso no celular</a>
+          <a href="#doc-troubleshooting" class="doc-link">16. Problemas comuns</a>
+          <a href="#doc-faq" class="doc-link">17. FAQ completo</a>
+          <a href="#doc-dicas" class="doc-link">18. Dicas pro</a>
+        </div>
+      </div>
+
+      <!-- 1. Introdução -->
+      <div class="card doc-section" id="doc-intro" style="padding:28px;">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+          <div style="width:48px;height:48px;border-radius:14px;background:var(--grad-purple);display:grid;place-items:center;font-size:22px;box-shadow:var(--glow-purple);">🚀</div>
+          <div>
+            <h3 style="font-size:20px;font-weight:700;">1. Introdução</h3>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:2px;">O que é o FleetFlow e pra quem ele serve.</p>
+          </div>
+        </div>
+
+        <p style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:14px;">
+          O <strong style="color:var(--text);">FleetFlow</strong> é um sistema web pra controlar as finanças de uma transportadora de pequeno e médio porte. Funciona direto no navegador — sem cadastro, sem mensalidade, sem internet obrigatória.
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;">
+          <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:16px;">
+            <div style="font-weight:700;color:var(--emerald);margin-bottom:8px;">✅ O que ele FAZ</div>
+            <ul style="font-size:12px;color:var(--text-muted);line-height:1.7;padding-left:18px;">
+              <li>Cadastrar fretes (viagens)</li>
+              <li>Calcular lucro automaticamente</li>
+              <li>Controlar contas fixas</li>
+              <li>Mostrar dashboard com gráficos</li>
+              <li>Comparar meses</li>
+              <li>Exportar/importar backup</li>
+              <li>Funcionar offline</li>
+            </ul>
+          </div>
+          <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:16px;">
+            <div style="font-weight:700;color:var(--rose);margin-bottom:8px;">❌ O que ele NÃO faz</div>
+            <ul style="font-size:12px;color:var(--text-muted);line-height:1.7;padding-left:18px;">
+              <li>Emitir nota fiscal</li>
+              <li>Gerar boleto / cobrança</li>
+              <li>Rastreamento por GPS</li>
+              <li>Folha de pagamento</li>
+              <li>Sincronizar entre dispositivos</li>
+              <li>Substituir contador</li>
+            </ul>
+          </div>
+        </div>
+
+        <div style="background:var(--surface-2);border-radius:12px;padding:16px;margin-top:18px;border-left:3px solid var(--primary);">
+          <div style="font-weight:700;margin-bottom:6px;font-size:13px;">👥 Para quem é o FleetFlow</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.6;">
+            Donos de transportadora, autônomos, frotistas e gestores que querem entender <strong style="color:var(--text);">se a operação está dando lucro de verdade</strong> — descontando combustível, pedágios, comissões e contas fixas. Não substitui contabilidade, mas dá clareza sobre o operacional.
+          </p>
+        </div>
+      </div>
+
+      <!-- 2. Tour pela interface -->
+      <div class="card doc-section" id="doc-tour" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">🗺️ 2. Tour pela interface</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">Conheça cada parte do sistema antes de começar.</p>
+
+        <div class="doc-step" style="background:var(--surface-2);border-radius:14px;padding:18px;margin-bottom:12px;border-left:3px solid var(--primary);">
+          <div style="font-weight:700;margin-bottom:6px;">📍 Sidebar (menu lateral esquerdo)</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Aqui você navega entre as seções. No celular fica escondida e abre pelo botão hambúrguer (☰). Tem 3 áreas:
+            <ul style="margin-top:8px;padding-left:20px;">
+              <li><strong style="color:var(--text);">Geral</strong> — Visão Geral, Fretes, Contas Fixas</li>
+              <li><strong style="color:var(--text);">Ajuda</strong> — Esta documentação</li>
+              <li><strong style="color:var(--text);">Dados</strong> — Exportar / Importar Backup</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="doc-step" style="background:var(--surface-2);border-radius:14px;padding:18px;margin-bottom:12px;border-left:3px solid var(--pink);">
+          <div style="font-weight:700;margin-bottom:6px;">📍 Topbar (barra superior)</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Boas-vindas + botão de tema 🌙/☀️ no canto direito. No celular, aparece também o botão hambúrguer pra abrir a sidebar.
+          </div>
+        </div>
+
+        <div class="doc-step" style="background:var(--surface-2);border-radius:14px;padding:18px;margin-bottom:12px;border-left:3px solid var(--cyan);">
+          <div style="font-weight:700;margin-bottom:6px;">📍 Visão Geral (Dashboard)</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            5 cards com indicadores do mês + medidor de saúde financeira + 2 gráficos (linha de evolução e donut de distribuição) + tabela de fretes recentes. Use o seletor de mês no canto pra filtrar.
+          </div>
+        </div>
+
+        <div class="doc-step" style="background:var(--surface-2);border-radius:14px;padding:18px;margin-bottom:12px;border-left:3px solid var(--orange);">
+          <div style="font-weight:700;margin-bottom:6px;">📍 Fretes</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Formulário de cadastro no topo + lista completa abaixo com filtros (busca por texto + filtro por mês). No celular, a lista vira cards verticais.
+          </div>
+        </div>
+
+        <div class="doc-step" style="background:var(--surface-2);border-radius:14px;padding:18px;border-left:3px solid var(--green);">
+          <div style="font-weight:700;margin-bottom:6px;">📍 Contas Fixas</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Mesma estrutura: cadastro + lista. Aqui entra tudo que é despesa recorrente da empresa (não viagens).
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Primeiros 30 minutos -->
+      <div class="card doc-section" id="doc-primeiros" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">⏱️ 3. Primeiros 30 minutos</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">Roteiro pra você sair do zero e ter o sistema funcionando.</p>
+
+        <div style="background:var(--surface-2);border-radius:14px;padding:20px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--grad-purple);display:grid;place-items:center;color:white;font-weight:800;font-size:14px;">1</div>
+            <div style="font-weight:700;">Cadastre 3-5 fretes recentes (10 min)</div>
+          </div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;padding-left:42px;">
+            Pegue notas/recibos das últimas semanas e cadastre. Se não lembrar exato dos gastos, deixe um valor médio que você sabe que costuma ser. O importante é começar.
+          </p>
+        </div>
+
+        <div style="background:var(--surface-2);border-radius:14px;padding:20px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--grad-pink);display:grid;place-items:center;color:white;font-weight:800;font-size:14px;">2</div>
+            <div style="font-weight:700;">Lance suas contas fixas do mês (10 min)</div>
+          </div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;padding-left:42px;">
+            Aluguel, internet, contador, salários, impostos do mês passado. Tudo o que sai todo mês independente de viagem. Use a categoria certa.
+          </p>
+        </div>
+
+        <div style="background:var(--surface-2);border-radius:14px;padding:20px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--grad-cyan);display:grid;place-items:center;color:white;font-weight:800;font-size:14px;">3</div>
+            <div style="font-weight:700;">Vá pra Visão Geral (5 min)</div>
+          </div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;padding-left:42px;">
+            Veja como o dashboard ficou: receita, custos, lucro. Olhe o medidor de saúde — ele te dá uma ideia do desempenho. Filtre o mês.
+          </p>
+        </div>
+
+        <div style="background:var(--surface-2);border-radius:14px;padding:20px;border-left:3px solid var(--orange);">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--grad-orange);display:grid;place-items:center;color:white;font-weight:800;font-size:14px;">4</div>
+            <div style="font-weight:700;">Faça seu primeiro backup (5 min)</div>
+          </div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;padding-left:42px;">
+            Sidebar → Exportar Backup. Salva um arquivo .json. Mande pro seu WhatsApp ou Drive. Pronto, agora se algo acontecer com o navegador, você não perde nada.
+          </p>
+        </div>
+      </div>
+
+      <!-- 4. Cadastrar Fretes -->
+      <div class="card doc-section" id="doc-fretes" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">🚚 4. Como cadastrar Fretes</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">Cada campo explicado em detalhe + exemplo prático.</p>
+
+        <div style="background:var(--surface-2);border-radius:12px;padding:18px;margin-bottom:14px;">
+          <div style="font-weight:700;margin-bottom:12px;font-size:14px;">📋 Campos do formulário</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:13px;">
+              <strong style="color:var(--text);">Data</strong>
+              <span style="color:var(--text-muted);">Dia em que a viagem aconteceu (ou foi paga). Ele já preenche com hoje.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:13px;">
+              <strong style="color:var(--text);">Cliente</strong>
+              <span style="color:var(--text-muted);">Quem contratou o frete. Use sempre o mesmo nome pra mesma empresa (ex: "Atacadão SA", não às vezes "Atacadão" e às vezes "Atacadao SA").</span>
+            </div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:13px;">
+              <strong style="color:var(--text);">Motorista</strong>
+              <span style="color:var(--text-muted);">Quem dirigiu. Mesma regra do cliente: use sempre o mesmo nome.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:13px;">
+              <strong style="color:var(--text);">Origem / Destino</strong>
+              <span style="color:var(--text-muted);">Cidades de saída e chegada. Padronize: "Cuiabá — MT" (nome cidade, traço, sigla estado).</span>
+            </div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:13px;">
+              <strong style="color:var(--text);">Valor do Frete</strong>
+              <span style="color:var(--text-muted);">Quanto o cliente paga (ou pagou). Antes dos gastos. <strong style="color:var(--text);">Esse é o bruto da viagem.</strong></span>
+            </div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:13px;">
+              <strong style="color:var(--text);">Combustível</strong>
+              <span style="color:var(--text-muted);">Quanto gastou de diesel/gasolina nessa viagem específica. Olhe a nota do posto.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:13px;">
+              <strong style="color:var(--text);">Pedágio</strong>
+              <span style="color:var(--text-muted);">Soma de todos os pedágios da rota.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:13px;">
+              <strong style="color:var(--text);">Comissão</strong>
+              <span style="color:var(--text-muted);">O que paga pro motorista nessa viagem (porcentagem ou fixo).</span>
+            </div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:13px;">
+              <strong style="color:var(--text);">Alimentação</strong>
+              <span style="color:var(--text-muted);">Refeições do motorista na estrada (se a empresa banca).</span>
+            </div>
+            <div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:13px;">
+              <strong style="color:var(--text);">Outros Gastos</strong>
+              <span style="color:var(--text-muted);">Estacionamento, lavagem, pequenos reparos, multas, lonas, qualquer custo direto da viagem.</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(168,85,247,.05));border:1px solid rgba(139,92,246,.2);border-radius:14px;padding:18px;">
+          <div style="font-weight:700;margin-bottom:10px;color:var(--primary-2);">💡 Exemplo prático</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:10px;">
+            Frete de Cuiabá (MT) → Goiânia (GO), entregando soja pro Cliente "Cargill", motorista "João Silva", recebendo R$ 4.500.
+          </p>
+          <div style="background:var(--surface-3);border-radius:10px;padding:14px;font-size:13px;line-height:1.9;font-family:monospace;">
+            <div>Valor do Frete:    <strong style="color:var(--emerald);">R$ 4.500,00</strong></div>
+            <div>Combustível:       R$ 1.800,00</div>
+            <div>Pedágio:           R$&nbsp;&nbsp;&nbsp;180,00</div>
+            <div>Comissão (10%):    R$ &nbsp;&nbsp;450,00</div>
+            <div>Alimentação:       R$ &nbsp;&nbsp;&nbsp;80,00</div>
+            <div>Outros:            R$ &nbsp;&nbsp;&nbsp;40,00</div>
+            <div style="border-top:1px solid var(--border);padding-top:6px;margin-top:6px;">Total Gastos:      R$ 2.550,00</div>
+            <div><strong style="color:var(--emerald);">Lucro do Frete:    R$ 1.950,00 ✓</strong></div>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-top:10px;">
+            Margem desse frete: 43% (lucro ÷ valor). Rotas com margem abaixo de 20-25% merecem atenção.
+          </p>
+        </div>
+
+        <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:12px;padding:14px;margin-top:14px;">
+          <div style="font-weight:700;color:var(--amber);font-size:13px;margin-bottom:6px;">⚠️ Erros comuns</div>
+          <ul style="font-size:12px;color:var(--text-muted);line-height:1.7;padding-left:18px;">
+            <li>Esquecer pedágio ou comissão — distorce o lucro</li>
+            <li>Cadastrar dias depois e estimar errado os custos</li>
+            <li>Misturar grafia do mesmo cliente (relatórios ficam fragmentados)</li>
+            <li>Lançar custo fixo (ex: aluguel) como "Outros" no frete — confunde</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 5. Cadastrar Contas Fixas -->
+      <div class="card doc-section" id="doc-contas" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">💰 5. Como cadastrar Contas Fixas</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">O que é "conta fixa" e o que entra em cada categoria.</p>
+
+        <p style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:14px;">
+          Conta fixa é tudo que a empresa paga <strong style="color:var(--text);">independente de fazer viagem ou não</strong>. Mesmo que você fique uma semana parado, esses custos continuam rolando.
+        </p>
+
+        <div style="background:var(--surface-2);border-radius:12px;padding:18px;margin-bottom:14px;">
+          <div style="font-weight:700;margin-bottom:12px;font-size:14px;">📂 Categorias e o que entra em cada</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:13px;align-items:start;">
+              <span class="tag" style="text-align:center;">Aluguel</span>
+              <span style="color:var(--text-muted);">Aluguel da garagem, escritório, galpão.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:13px;align-items:start;">
+              <span class="tag" style="text-align:center;">Internet</span>
+              <span style="color:var(--text-muted);">Wi-Fi, telefone fixo, plano de celular da empresa.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:13px;align-items:start;">
+              <span class="tag" style="text-align:center;">Salários</span>
+              <span style="color:var(--text-muted);">Salário fixo de motoristas, secretária, mecânico próprio. Comissão por viagem entra no frete, não aqui.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:13px;align-items:start;">
+              <span class="tag" style="text-align:center;">Contador</span>
+              <span style="color:var(--text-muted);">Honorários do escritório de contabilidade.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:13px;align-items:start;">
+              <span class="tag" style="text-align:center;">Impostos</span>
+              <span style="color:var(--text-muted);">DAS (MEI/Simples), IPVA, ICMS, ISS, INSS empresarial.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:13px;align-items:start;">
+              <span class="tag" style="text-align:center;">Manutenção</span>
+              <span style="color:var(--text-muted);">Troca de óleo, pneus, revisões, peças. Reparo grande.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:13px;align-items:start;">
+              <span class="tag" style="text-align:center;">Seguros</span>
+              <span style="color:var(--text-muted);">Seguro do caminhão, RCTR-C, vida, frota.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:13px;align-items:start;">
+              <span class="tag" style="text-align:center;">Outros</span>
+              <span style="color:var(--text-muted);">Contabilidade extra, software, marketing, água, luz, sistema de rastreamento, antivírus...</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:14px;">
+          <div style="font-weight:700;color:var(--rose);font-size:13px;margin-bottom:6px;">⚠️ Atenção: NÃO confunda</div>
+          <p style="font-size:12px;color:var(--text-muted);line-height:1.7;">
+            Combustível, pedágio, comissão e alimentação <strong style="color:var(--text);">NÃO</strong> são contas fixas — esses são <strong style="color:var(--text);">custos de viagem</strong>, lançados no frete específico. Se o caminhão fica parado, esses custos não acontecem. O sistema separa direitinho na hora de calcular o lucro.
+          </p>
+        </div>
+      </div>
+
+      <!-- 6. Dashboard -->
+      <div class="card doc-section" id="doc-dashboard" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">📊 6. Entendendo o Dashboard</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">Cada card e gráfico explicado.</p>
+
+        <h4 style="font-size:14px;font-weight:700;margin:12px 0 10px;color:var(--primary-2);">5 Cards de Indicadores</h4>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;">
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--emerald);">💚 Receita de Fretes</strong> — Soma do "Valor do Frete" de todas as viagens do mês. Bruto, antes dos custos.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--orange);">🟠 Custos de Viagem</strong> — Soma de combustível + pedágio + comissão + alimentação + outros, de todos os fretes do mês.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--pink);">🩷 Custos Fixos</strong> — Soma de tudo lançado em "Contas Fixas" no mês.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--cyan);">💎 Lucro Líquido / Prejuízo</strong> — Receita menos os dois tipos de custo. Se for negativo, vira "Prejuízo" automaticamente.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--primary);">💜 Fretes no mês</strong> — Quantidade de viagens cadastradas no período.
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Gráficos -->
+      <div class="card doc-section" id="doc-graficos" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">📈 7. Como ler os gráficos</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">Cada visualização tem um propósito diferente.</p>
+
+        <div style="background:var(--surface-2);border-radius:14px;padding:18px;margin-bottom:12px;border-left:3px solid var(--primary);">
+          <div style="font-weight:700;margin-bottom:8px;">📉 Evolução Mensal (gráfico de linha)</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Mostra <strong style="color:var(--text);">receita (roxo)</strong> e <strong style="color:var(--text);">custos totais (rosa)</strong> mês a mês. Ideal pra ver tendência ao longo do tempo. Se a linha rosa começar a se aproximar ou ultrapassar a roxa, alerta!
+          </p>
+          <p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-top:8px;">
+            <strong style="color:var(--text);">Dica:</strong> meses sem dados não aparecem. Quanto mais histórico, melhor a leitura.
+          </p>
+        </div>
+
+        <div style="background:var(--surface-2);border-radius:14px;padding:18px;margin-bottom:12px;border-left:3px solid var(--pink);">
+          <div style="font-weight:700;margin-bottom:8px;">🍩 Distribuição de Custos (donut)</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Mostra pra onde foi cada real de despesa do mês. As fatias são: Combustível (laranja), Pedágio (roxo), Comissão (rosa), Alimentação (ciano), Outros (azul) e Contas Fixas (verde).
+          </p>
+          <p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-top:8px;">
+            <strong style="color:var(--text);">Como usar:</strong> se "Combustível" estiver dominando (60%+), revisar rota, peso da carga ou consumo do caminhão. Se "Manutenção" subir muito, pode ser hora de trocar veículo.
+          </p>
+        </div>
+
+        <div style="background:var(--surface-2);border-radius:14px;padding:18px;border-left:3px solid var(--orange);">
+          <div style="font-weight:700;margin-bottom:8px;">🎯 Saúde Financeira (medidor)</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Score de 0 a 1000 baseado na <strong style="color:var(--text);">margem de lucro</strong> (lucro ÷ receita). Verde = saudável, vermelho = crítico. Detalhes na seção 8.
+          </p>
+        </div>
+      </div>
+
+      <!-- 8. Saúde Financeira -->
+      <div class="card doc-section" id="doc-saude" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">🩺 8. Saúde Financeira</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">O que o medidor te diz e como reagir.</p>
+
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;">
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:10px;align-items:center;">
+            <span class="gauge-badge low" style="text-align:center;">700+ • Excelente</span>
+            <span style="font-size:13px;color:var(--text-muted);">Margem acima de 22%. Operação muito saudável. Aproveite pra investir, criar reserva ou expandir frota.</span>
+          </div>
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:10px;align-items:center;">
+            <span class="gauge-badge mid" style="text-align:center;">500-699 • Saudável</span>
+            <span style="font-size:13px;color:var(--text-muted);">Margem entre 10% e 22%. Operação dá lucro razoável. Vale otimizar custos pra subir mais.</span>
+          </div>
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:10px;align-items:center;">
+            <span class="gauge-badge high" style="text-align:center;">300-499 • Atenção</span>
+            <span style="font-size:13px;color:var(--text-muted);">Margem entre 0% e 10%. Tá no fio da navalha. Qualquer imprevisto vira prejuízo. Revisar valores cobrados.</span>
+          </div>
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:10px;align-items:center;">
+            <span class="gauge-badge bad" style="text-align:center;">0-299 • Crítico</span>
+            <span style="font-size:13px;color:var(--text-muted);">Margem negativa ou perto de zero. Tá saindo dinheiro do bolso. <strong style="color:var(--text);">Pare e refaça as contas urgente.</strong></span>
+          </div>
+        </div>
+
+        <div style="background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(168,85,247,.04));border:1px solid rgba(139,92,246,.2);border-radius:12px;padding:16px;">
+          <div style="font-weight:700;margin-bottom:8px;color:var(--primary-2);">💡 Como melhorar a margem</div>
+          <ul style="font-size:13px;color:var(--text-muted);line-height:1.8;padding-left:20px;">
+            <li>Renegociar valor com clientes recorrentes (mostre dados!)</li>
+            <li>Recusar fretes muito mal pagos</li>
+            <li>Otimizar rota (evitar pedágios caros, postos baratos)</li>
+            <li>Reduzir custo de combustível (manutenção em dia, peso, velocidade)</li>
+            <li>Consolidar viagens (não rodar caminhão vazio)</li>
+            <li>Cortar contas fixas desnecessárias</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 9. Rotinas -->
+      <div class="card doc-section" id="doc-rotinas" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">📅 9. Rotinas recomendadas</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">Frequência ideal pra manter os dados sempre atualizados.</p>
+
+        <div style="background:var(--surface-2);border-radius:14px;padding:18px;margin-bottom:12px;border-left:3px solid var(--green);">
+          <div style="font-weight:700;margin-bottom:6px;">🟢 Diária — 5 minutos</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Cadastrar os fretes que aconteceram no dia. Junte os recibos (pedágio, posto, alimentação) e lance enquanto a memória tá fresca.
+          </p>
+        </div>
+
+        <div style="background:var(--surface-2);border-radius:14px;padding:18px;margin-bottom:12px;border-left:3px solid var(--cyan);">
+          <div style="font-weight:700;margin-bottom:6px;">🔵 Semanal — 15 minutos</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Revisar a lista de fretes da semana, lançar contas que pagou, conferir totais. <strong style="color:var(--text);">Exportar backup.</strong>
+          </p>
+        </div>
+
+        <div style="background:var(--surface-2);border-radius:14px;padding:18px;border-left:3px solid var(--primary);">
+          <div style="font-weight:700;margin-bottom:6px;">🟣 Mensal — 30 minutos</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Fechamento: ir no Dashboard, filtrar pelo mês, analisar. Comparar com mês anterior. Identificar custo que cresceu, cliente que rendeu mais. Anotar conclusões. Backup do mês fechado.
+          </p>
+        </div>
+      </div>
+
+      <!-- 10. Cenários práticos -->
+      <div class="card doc-section" id="doc-cenarios" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">🎯 10. Cenários práticos</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">Situações reais e como o sistema te ajuda.</p>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:16px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Vale a pena fazer essa rota X→Y?"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Use a busca em "Fretes" e digite a cidade. Veja todos os fretes anteriores nessa rota, o lucro de cada um e a média. Se a maioria fica abaixo de 20% de margem, é rota ruim.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:16px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Qual motorista dá mais lucro?"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Busque por nome de motorista em "Fretes" e some o lucro. Compare entre motoristas considerando que rotas diferentes têm margens diferentes.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:16px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Qual cliente é mais rentável?"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Busque pelo nome do cliente em "Fretes". Veja receita acumulada e lucro. Cliente que paga muito mas exige rota cara pode dar menos lucro que cliente menor mas com rota lucrativa.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:16px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Onde meu dinheiro está indo?"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            No Dashboard, olhe o donut "Distribuição de Custos". A maior fatia te diz onde focar pra economizar.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:16px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Como mostrar o resultado pro contador?"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Tire print do Dashboard com o mês filtrado, ou exporte o backup .json e mande. O contador consegue abrir num editor e ver tudo.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:16px 18px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Esse mês foi melhor ou pior que o passado?"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Use o seletor de mês no Dashboard. Compare receita, lucro e score de saúde entre meses. O gráfico de linha já mostra a tendência visual.
+          </p>
+        </details>
+      </div>
+
+      <!-- 11. Fórmulas -->
+      <div class="card doc-section" id="doc-formulas" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:18px;">🧮 11. Fórmulas e cálculos</h3>
+        <div style="background:var(--surface-2);border-radius:14px;padding:20px;font-family:monospace;font-size:13px;line-height:2.2;color:var(--text-muted);overflow-x:auto;">
+          <div><span style="color:var(--orange);">Total de Gastos do Frete</span> = Combustível + Pedágio + Comissão + Alimentação + Outros</div>
+          <div><span style="color:var(--emerald);">Lucro do Frete</span> = Valor do Frete − Total de Gastos</div>
+          <div><span style="color:var(--pink);">Margem do Frete</span> = (Lucro ÷ Valor do Frete) × 100</div>
+          <div style="margin-top:8px;"><span style="color:var(--cyan);">Receita do Mês</span> = Σ Valor de todos os Fretes do mês</div>
+          <div><span style="color:var(--cyan);">Custos de Viagem do Mês</span> = Σ Total de Gastos de todos os Fretes</div>
+          <div><span style="color:var(--cyan);">Custos Fixos do Mês</span> = Σ Valor de todas as Contas Fixas</div>
+          <div><span style="color:var(--primary-2);">Lucro Líquido do Mês</span> = Receita − Custos de Viagem − Custos Fixos</div>
+          <div style="margin-top:8px;"><span style="color:var(--amber);">Score de Saúde</span> ≈ ((Margem + 0.2) ÷ 0.6) × 1000</div>
+        </div>
+      </div>
+
+      <!-- 12. Glossário -->
+      <div class="card doc-section" id="doc-glossario" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:18px;">📘 12. Glossário</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;">
+            <strong style="color:var(--text);">Frete</strong> — Cada viagem feita pra um cliente. Tem origem, destino, valor recebido e custos.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;">
+            <strong style="color:var(--text);">Receita</strong> — Dinheiro que entra (valor dos fretes). Vem antes dos custos.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;">
+            <strong style="color:var(--text);">Custo de Viagem</strong> — Despesa que só acontece se você faz a viagem (combustível, pedágio, comissão).
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;">
+            <strong style="color:var(--text);">Custo Fixo</strong> — Despesa que rola todo mês independente de viagem (aluguel, salário fixo, internet).
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;">
+            <strong style="color:var(--text);">Lucro Bruto</strong> — Receita menos custos de viagem (não considera contas fixas).
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;">
+            <strong style="color:var(--text);">Lucro Líquido</strong> — Receita menos TODOS os custos (viagem + fixos). É o que sobra de verdade.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;">
+            <strong style="color:var(--text);">Margem de Lucro</strong> — Lucro dividido pela receita, em %. Quanto maior, mais saudável.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;">
+            <strong style="color:var(--text);">Comissão</strong> — Parte do frete que vai pro motorista (geralmente 10-15%).
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;">
+            <strong style="color:var(--text);">Backup</strong> — Cópia de segurança dos dados. Arquivo .json que o sistema gera.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;">
+            <strong style="color:var(--text);">localStorage</strong> — Lugar dentro do navegador onde os dados ficam guardados. Limita ~5-10MB por site.
+          </div>
+        </div>
+      </div>
+
+      <!-- 13. Backup + Excel -->
+      <div class="card doc-section" id="doc-backup" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">💾 13. Backup, Excel e segurança</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">Como salvar, exportar e proteger seus dados.</p>
+
+        <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:16px;margin-bottom:18px;">
+          <div style="font-weight:700;color:var(--rose);margin-bottom:6px;">🚨 LEIA ISSO</div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.7;">
+            Os dados ficam <strong style="color:var(--text);">só no navegador</strong> deste aparelho. Se você limpar histórico, desinstalar o navegador, der reset no celular ou usar modo anônimo, <strong style="color:var(--text);">os dados somem.</strong> Backup é a única proteção.
+          </p>
+        </div>
+
+        <h4 style="font-size:15px;font-weight:700;margin:18px 0 10px;color:var(--emerald);">📊 Excel (.xlsx)</h4>
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:12px;">
+          Use Excel quando precisa abrir os dados em planilha (Excel, Google Sheets, LibreOffice), mandar pro contador ou montar gráficos próprios.
+        </p>
+        <div style="background:var(--surface-2);border-radius:12px;padding:16px;margin-bottom:14px;">
+          <div style="font-weight:700;font-size:13px;margin-bottom:8px;">Exportar para Excel</div>
+          <ol style="font-size:13px;color:var(--text-muted);line-height:1.8;padding-left:20px;margin-bottom:12px;">
+            <li>Sidebar → <strong style="color:var(--text);">"Exportar Excel"</strong></li>
+            <li>Baixa um arquivo <code style="background:var(--surface-3);padding:2px 6px;border-radius:4px;">fleetflow-2026-05-08.xlsx</code> com 3 abas:
+              <ul style="margin-top:4px;padding-left:18px;">
+                <li><strong style="color:var(--text);">Fretes</strong> — todos os fretes com cálculo de Total e Lucro</li>
+                <li><strong style="color:var(--text);">Contas Fixas</strong> — todas as despesas</li>
+                <li><strong style="color:var(--text);">Resumo Mensal</strong> — totais e margem mês a mês</li>
+              </ul>
+            </li>
+            <li>Datas e valores já vêm formatados (R$ e dd/mm/yyyy)</li>
+          </ol>
+          <div style="font-weight:700;font-size:13px;margin:12px 0 8px;">Importar de Excel</div>
+          <ol style="font-size:13px;color:var(--text-muted);line-height:1.8;padding-left:20px;">
+            <li>Sidebar → <strong style="color:var(--text);">"Importar Excel"</strong></li>
+            <li>Escolha o arquivo .xlsx (ou .xls / .csv)</li>
+            <li>O sistema lê as abas "Fretes" e "Contas Fixas" e te mostra:
+              <ul style="margin-top:4px;padding-left:18px;">
+                <li><strong style="color:var(--emerald);">➕ Adicionar:</strong> mantém os dados atuais e soma os do Excel</li>
+                <li><strong style="color:var(--rose);">🔄 Substituir:</strong> apaga tudo e fica só o que está no Excel</li>
+              </ul>
+            </li>
+          </ol>
+        </div>
+        <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:12px 14px;margin-bottom:18px;">
+          <strong style="color:var(--amber);font-size:13px;">💡 Dica de templante:</strong>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-top:4px;">
+            Não sabe que estrutura usar? <strong style="color:var(--text);">Exporta primeiro</strong> com poucos dados (ou vazio), preenche a planilha no Excel/Google Sheets como modelo, e depois importa.
+          </p>
+        </div>
+
+        <h4 style="font-size:15px;font-weight:700;margin:18px 0 10px;color:var(--primary-2);">💾 Backup JSON (.json)</h4>
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:12px;">
+          Use JSON para backup completo e exato dos dados — ideal pra restaurar após problema, trocar de aparelho ou guardar arquivo histórico.
+        </p>
+        <div style="background:var(--surface-2);border-radius:12px;padding:16px;">
+          <ol style="font-size:13px;color:var(--text-muted);line-height:1.8;padding-left:20px;">
+            <li><strong style="color:var(--text);">Exportar Backup:</strong> baixa <code style="background:var(--surface-3);padding:2px 6px;border-radius:4px;">fleetflow-backup-YYYY-MM-DD.json</code></li>
+            <li><strong style="color:var(--text);">Importar Backup:</strong> SUBSTITUI todos os dados pelo arquivo (sem opção de adicionar)</li>
+            <li>Mande o arquivo pro WhatsApp/Drive/e-mail pra guardar</li>
+          </ol>
+        </div>
+
+        <h4 style="font-size:15px;font-weight:700;margin:18px 0 10px;">📅 Frequência ideal</h4>
+        <ul style="font-size:13px;color:var(--text-muted);line-height:1.8;padding-left:20px;">
+          <li><strong style="color:var(--text);">Mínimo:</strong> 1× por semana (toda sexta, por exemplo)</li>
+          <li><strong style="color:var(--text);">Recomendado:</strong> a cada fechamento mensal</li>
+          <li><strong style="color:var(--text);">Antes de:</strong> trocar de celular, limpar navegador, atualizar SO</li>
+        </ul>
+
+        <h4 style="font-size:15px;font-weight:700;margin:18px 0 10px;">🆚 Excel ou JSON?</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="background:var(--surface-2);border-radius:12px;padding:14px;">
+            <div style="font-weight:700;color:var(--emerald);font-size:13px;margin-bottom:6px;">📊 Use Excel quando...</div>
+            <ul style="font-size:12px;color:var(--text-muted);line-height:1.7;padding-left:18px;">
+              <li>Mandar pro contador</li>
+              <li>Abrir no Excel/Sheets</li>
+              <li>Imprimir relatórios</li>
+              <li>Compartilhar com sócio</li>
+              <li>Migrar planilha antiga pro sistema</li>
+            </ul>
+          </div>
+          <div style="background:var(--surface-2);border-radius:12px;padding:14px;">
+            <div style="font-weight:700;color:var(--primary-2);font-size:13px;margin-bottom:6px;">💾 Use JSON quando...</div>
+            <ul style="font-size:12px;color:var(--text-muted);line-height:1.7;padding-left:18px;">
+              <li>Backup de segurança</li>
+              <li>Trocar de aparelho</li>
+              <li>Restaurar exato como estava</li>
+              <li>Guardar arquivo histórico</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 14. Privacidade -->
+      <div class="card doc-section" id="doc-privacidade" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">🔒 14. Privacidade e dados</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">Onde estão seus dados e quem pode ver.</p>
+
+        <ul style="font-size:13px;color:var(--text-muted);line-height:1.9;padding-left:20px;">
+          <li><strong style="color:var(--text);">Nada é enviado pra servidor</strong> — não tem login, não tem nuvem nossa, nada</li>
+          <li><strong style="color:var(--text);">Dados só nesse aparelho</strong> — só você (ou quem usa esse navegador) vê</li>
+          <li><strong style="color:var(--text);">Funciona offline</strong> — depois de aberto pela primeira vez, roda sem internet</li>
+          <li><strong style="color:var(--text);">Sem cookies de rastreamento</strong> — só localStorage pra salvar os dados e a preferência de tema</li>
+          <li><strong style="color:var(--text);">Dependências externas</strong> — Chart.js (gráficos) e Google Fonts são carregados de CDN público, mas não recebem seus dados</li>
+          <li><strong style="color:var(--text);">LGPD</strong> — como os dados ficam só com você, não há tratamento por terceiros</li>
+        </ul>
+      </div>
+
+      <!-- 15. Mobile -->
+      <div class="card doc-section" id="doc-mobile" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">📱 15. Uso no celular</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">É onde a maioria vai usar mesmo.</p>
+
+        <h4 style="font-size:14px;font-weight:700;margin:12px 0 10px;">Adicionar à tela inicial (vira app)</h4>
+        <div style="background:var(--surface-2);border-radius:12px;padding:16px;margin-bottom:14px;">
+          <div style="font-weight:600;margin-bottom:6px;font-size:13px;">📱 iPhone (Safari)</div>
+          <ol style="font-size:13px;color:var(--text-muted);line-height:1.7;padding-left:20px;">
+            <li>Abrir o sistema no Safari</li>
+            <li>Tocar no botão de compartilhar (quadradinho com seta pra cima)</li>
+            <li>Rolar e tocar em "Adicionar à Tela de Início"</li>
+            <li>Confirmar — aparece um ícone como app</li>
+          </ol>
+        </div>
+        <div style="background:var(--surface-2);border-radius:12px;padding:16px;margin-bottom:14px;">
+          <div style="font-weight:600;margin-bottom:6px;font-size:13px;">🤖 Android (Chrome)</div>
+          <ol style="font-size:13px;color:var(--text-muted);line-height:1.7;padding-left:20px;">
+            <li>Abrir o sistema no Chrome</li>
+            <li>Tocar no menu (3 pontos)</li>
+            <li>"Adicionar à tela inicial"</li>
+            <li>Confirmar nome — vira atalho com ícone</li>
+          </ol>
+        </div>
+
+        <h4 style="font-size:14px;font-weight:700;margin:18px 0 10px;">Diferenças no mobile</h4>
+        <ul style="font-size:13px;color:var(--text-muted);line-height:1.8;padding-left:20px;">
+          <li>Sidebar abre por botão hambúrguer (☰) no canto superior esquerdo</li>
+          <li>Tabelas viram cards verticais (mais fácil ler)</li>
+          <li>Formulário em 2 colunas (1 em telas pequenas)</li>
+          <li>Inputs com tamanho confortável pra dedo</li>
+          <li>Suporta safe-area de iPhone com notch</li>
+        </ul>
+      </div>
+
+      <!-- 16. Troubleshooting -->
+      <div class="card doc-section" id="doc-troubleshooting" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:6px;">🛠️ 16. Problemas comuns</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">Quando algo não funciona como esperado.</p>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Não consigo cadastrar — botão não funciona"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Verifique se todos os campos obrigatórios estão preenchidos (Data, Cliente, Motorista, Origem, Destino, Valor). Em alguns navegadores antigos, o sistema pode não funcionar 100% — use Chrome, Firefox, Edge ou Safari atualizados.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Os números no Dashboard não batem com o que cadastrei"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Confira se o filtro de mês no topo direito está em "Todos os meses" ou no mês certo. Confira se você cadastrou o frete com a data correta (não o dia que cadastrou, mas o dia da viagem).
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Perdi todos os dados!"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Se tem backup .json, vai em "Importar Backup" e restaure. Se não tem... infelizmente não dá pra recuperar (não temos servidor com cópia). Crie o hábito de exportar toda semana pra nunca passar por isso.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Sistema lento com muitos fretes"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Se passa de 1000 registros, pode demorar pra renderizar a lista. Use os filtros de mês e busca pra mostrar menos itens por vez.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Não abre no celular antigo"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            O sistema usa recursos modernos do navegador. Em celulares com Android 7 ou menos, ou iOS 13 ou menos, pode dar problema. Atualize o navegador ou tente em outro aparelho.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">"Importei backup e os dados não apareceram"</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Confirme que o arquivo é um backup do FleetFlow (extensão .json e formato correto). Se importou e nada apareceu, talvez o arquivo esteja vazio ou corrompido — tente recarregar a página depois.
+          </p>
+        </details>
+      </div>
+
+      <!-- 17. FAQ -->
+      <div class="card doc-section" id="doc-faq" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:18px;">❓ 17. FAQ completo</h3>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">Posso usar em vários aparelhos ao mesmo tempo?</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Pode, mas cada aparelho tem dados próprios (não sincroniza automático). Pra manter igual, exporte de um e importe no outro.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">Tem limite de quantos fretes/contas posso cadastrar?</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            O localStorage do navegador aguenta uns 5-10MB. Em fretes, isso dá facilmente +50.000 registros. Pra uma transportadora pequena/média, é mais que suficiente por anos.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">Como editar um frete que cadastrei errado?</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Hoje só dá pra excluir (🗑) e cadastrar de novo certo. Edição direta tá no roadmap.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">Funciona offline mesmo?</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Sim. Depois de carregar pela primeira vez, o navegador guarda em cache. Você pode cadastrar fretes sem internet — quando voltar online, nada precisa ser sincronizado porque tudo é local.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">Tem versão paga? Tem limite grátis?</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Não. É 100% gratuito, sem limite, sem anúncio, sem cadastro.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">Posso compartilhar com meu sócio?</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Pode mandar o arquivo HTML pra ele abrir no aparelho dele. Mas como cada um terá dados próprios, exporte/importe pra manter sincronizado, ou trabalhem só num aparelho.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">Como hospedar online pra acessar de qualquer lugar?</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Suba o <code style="background:var(--surface-3);padding:2px 6px;border-radius:4px;">index.html</code> em serviços gratuitos: <strong style="color:var(--text);">Netlify Drop</strong> (arrastar e soltar), <strong style="color:var(--text);">GitHub Pages</strong> ou <strong style="color:var(--text);">Vercel</strong>. Aí é só salvar a URL nos favoritos.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">Os dados são compartilhados com alguém?</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Não. Tudo fica local no seu navegador. Não tem servidor, não tem analytics, não tem rastreamento.
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">Como zerar tudo e começar do zero?</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Abra o console do navegador (F12 → Console), digite <code style="background:var(--surface-3);padding:2px 6px;border-radius:4px;">localStorage.clear()</code> e dê Enter. Recarregue. ⚠️ Faça backup antes!
+          </p>
+        </details>
+
+        <details style="background:var(--surface-2);border-radius:12px;padding:14px 18px;cursor:pointer;">
+          <summary style="font-weight:600;font-size:14px;list-style:none;">Posso ver os dados de outro mês qualquer?</summary>
+          <p style="font-size:13px;color:var(--text-muted);margin-top:10px;line-height:1.7;">
+            Sim. No Dashboard, no seletor de mês superior direito, escolha qualquer mês que tenha dados. Em "Fretes" e "Contas Fixas" também tem filtro de mês.
+          </p>
+        </details>
+      </div>
+
+      <!-- 18. Dicas pro -->
+      <div class="card doc-section" id="doc-dicas" style="padding:28px;">
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:18px;">💡 18. Dicas pro</h3>
+
+        <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+          <div style="background:var(--surface-2);border-radius:10px;padding:14px;font-size:13px;line-height:1.7;color:var(--text-muted);border-left:3px solid var(--primary);">
+            <strong style="color:var(--text);">📌 Padronize nomes</strong> — sempre escreva clientes e motoristas do mesmo jeito. Senão, busca não acha tudo. Crie um padrão escrito e siga.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:14px;font-size:13px;line-height:1.7;color:var(--text-muted);border-left:3px solid var(--pink);">
+            <strong style="color:var(--text);">📌 Cadastre na hora</strong> — a memória engana. Em até 24h depois da viagem, com as notas em mãos.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:14px;font-size:13px;line-height:1.7;color:var(--text-muted);border-left:3px solid var(--cyan);">
+            <strong style="color:var(--text);">📌 Compare meses</strong> — todo mês olhe o anterior. Veja o que melhorou e o que piorou. Anote conclusões num caderno.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:14px;font-size:13px;line-height:1.7;color:var(--text-muted);border-left:3px solid var(--orange);">
+            <strong style="color:var(--text);">📌 Backup duplo</strong> — guarde o .json em pelo menos DOIS lugares (Drive + WhatsApp, por exemplo). Um pode sumir.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:14px;font-size:13px;line-height:1.7;color:var(--text-muted);border-left:3px solid var(--green);">
+            <strong style="color:var(--text);">📌 Use o filtro de mês</strong> — ele é seu melhor amigo pra fechamento e comparação. Não tente ler tudo junto.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:14px;font-size:13px;line-height:1.7;color:var(--text-muted);border-left:3px solid var(--amber);">
+            <strong style="color:var(--text);">📌 Lance até o que parece pequeno</strong> — R$ 30 de almoço × 60 viagens = R$ 1.800/mês. Custo "pequeno" some no acumulado.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:14px;font-size:13px;line-height:1.7;color:var(--text-muted);border-left:3px solid var(--rose);">
+            <strong style="color:var(--text);">📌 Cuidado com fretes muito baratos</strong> — às vezes parecem bons, mas com pedágio caro e diesel alto, dão prejuízo. Sempre cheque a margem antes de aceitar.
+          </div>
+          <div style="background:var(--surface-2);border-radius:10px;padding:14px;font-size:13px;line-height:1.7;color:var(--text-muted);border-left:3px solid var(--blue);">
+            <strong style="color:var(--text);">📌 Tema escuro pra estrada</strong> — se for cadastrar no caminhão à noite, deixa em modo dark. Cansa menos os olhos.
+          </div>
+        </div>
+      </div>
+
+      <div class="card doc-section" style="padding:28px;text-align:center;background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(168,85,247,.05));border:1px solid rgba(139,92,246,.2);">
+        <div style="font-size:32px;margin-bottom:10px;">🚀</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">Beleza! Agora é com você.</div>
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.7;max-width:500px;margin:0 auto;">
+          Comece cadastrando alguns fretes e contas fixas. Volta nessa documentação sempre que precisar. Boa rodagem! 🛣️
+        </p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <h3 id="confirmTitle">Confirmar</h3>
+    <p id="confirmMsg">Tem certeza?</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="hideConfirm()">Cancelar</button>
+      <button class="btn btn-danger" id="confirmOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="importChoiceModal">
+  <div class="modal" style="max-width:480px;">
+    <h3>📊 Importar Excel</h3>
+    <p id="importMsg">—</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;">
+      <div style="background:var(--surface-2);border-radius:10px;padding:12px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--emerald);">➕ Adicionar:</strong> mantém os dados atuais e soma os do Excel.
+      </div>
+      <div style="background:var(--surface-2);border-radius:10px;padding:12px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--rose);">🔄 Substituir:</strong> apaga tudo e fica só o que está no Excel.
+      </div>
+    </div>
+    <div class="modal-actions" style="flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="hideImportChoice()">Cancelar</button>
+      <button class="btn btn-danger" id="importReplace">🔄 Substituir</button>
+      <button class="btn btn-primary" id="importAdd">➕ Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============== STATE ============== */
+const STORE_KEY = 'transportadora_v1';
+const THEME_KEY = 'transportadora_theme';
+let state = { fretes: [], contas: [] };
+let chartLine, chartDonut, chartGauge;
+
+/* ============== TEMA ============== */
+function resolveInitialTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'light' || saved === 'dark') return saved;
+  return 'dark';
+}
+function applyTheme(theme) {
+  document.documentElement.classList.toggle('dark', theme === 'dark');
+  document.documentElement.classList.toggle('light', theme === 'light');
+  localStorage.setItem(THEME_KEY, theme);
+}
+function transitionTheme(next, origin) {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const startVT = document.startViewTransition?.bind(document);
+  if (!startVT || reduceMotion) {
+    applyTheme(next);
+    redrawCharts();
+    return;
+  }
+  const root = document.documentElement;
+  const x = origin?.x ?? window.innerWidth - 40;
+  const y = origin?.y ?? 40;
+  const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  root.style.setProperty('--rx', x + 'px');
+  root.style.setProperty('--ry', y + 'px');
+  root.style.setProperty('--rr', r + 'px');
+  root.dataset.themeTransition = next;
+  const t = startVT(() => { applyTheme(next); redrawCharts(); });
+  t.finished.finally(() => {
+    delete root.dataset.themeTransition;
+    root.style.removeProperty('--rx'); root.style.removeProperty('--ry'); root.style.removeProperty('--rr');
+  });
+}
+function toggleTheme(e) {
+  const cur = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  const next = cur === 'dark' ? 'light' : 'dark';
+  const r = e.currentTarget.getBoundingClientRect();
+  transitionTheme(next, { x: r.left + r.width/2, y: r.top + r.height/2 });
+}
+applyTheme(resolveInitialTheme());
+
+/* ============== STORAGE ============== */
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) state = JSON.parse(raw);
+  } catch (e) {}
+}
+function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+/* ============== UTILS ============== */
+const fmt = (n) => 'R$ ' + Number(n||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtShort = (n) => {
+  const v = Number(n||0);
+  if (Math.abs(v) >= 1000) return 'R$ ' + (v/1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k';
+  return 'R$ ' + v.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+};
+const id = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const monthKey = (d) => d ? d.slice(0,7) : '';
+const monthLabel = (k) => {
+  if (!k) return '';
+  const [y, m] = k.split('-');
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return `${meses[parseInt(m,10)-1]}/${y}`;
+};
+const formatDate = (s) => { if (!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
+const totalGastos = (f) => Number(f.combustivel||0)+Number(f.pedagio||0)+Number(f.comissao||0)+Number(f.alimentacao||0)+Number(f.outros||0);
+const lucroFrete = (f) => Number(f.valor||0) - totalGastos(f);
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function setDefaultDates() {
+  const today = new Date().toISOString().slice(0,10);
+  document.querySelectorAll('input[type="date"]').forEach(i => { if (!i.value) i.value = today; });
+}
+
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function showConfirm(title, msg, onOk) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  document.getElementById('confirmModal').classList.add('show');
+  document.getElementById('confirmOk').onclick = () => { hideConfirm(); onOk(); };
+}
+function hideConfirm() { document.getElementById('confirmModal').classList.remove('show'); }
+
+/* ============== TABS / SIDEBAR ============== */
+function switchTab(tabName) {
+  document.querySelectorAll('.nav-item[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tabName));
+  if (tabName === 'dashboard') renderDashboard();
+  closeSidebar();
+}
+document.querySelectorAll('.nav-item[data-tab]').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
+
+/* ============== FRETES ============== */
+document.getElementById('freteForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  state.fretes.unshift({
+    id: id(),
+    data: fd.get('data'),
+    cliente: fd.get('cliente').trim(),
+    motorista: fd.get('motorista').trim(),
+    origem: fd.get('origem').trim(),
+    destino: fd.get('destino').trim(),
+    valor: parseFloat(fd.get('valor'))||0,
+    combustivel: parseFloat(fd.get('combustivel'))||0,
+    pedagio: parseFloat(fd.get('pedagio'))||0,
+    comissao: parseFloat(fd.get('comissao'))||0,
+    alimentacao: parseFloat(fd.get('alimentacao'))||0,
+    outros: parseFloat(fd.get('outros'))||0,
+  });
+  save();
+  e.target.reset();
+  setDefaultDates();
+  renderFretes();
+  refreshMonthFilters();
+  toast('Frete adicionado!', 'success');
+});
+
+function deleteFrete(fid) {
+  showConfirm('Excluir frete', 'Esta ação não pode ser desfeita.', () => {
+    state.fretes = state.fretes.filter(f => f.id !== fid);
+    save(); renderFretes(); refreshMonthFilters(); toast('Frete excluído.', 'success');
+  });
+}
+function clearFreteFilters() {
+  document.getElementById('filterFrete').value = '';
+  document.getElementById('filterMesFrete').value = '';
+  renderFretes();
+}
+
+function renderFretes() {
+  const search = (document.getElementById('filterFrete').value||'').toLowerCase();
+  const mes = document.getElementById('filterMesFrete').value;
+  const tbody = document.getElementById('fretesBody');
+  const tfoot = document.getElementById('fretesFoot');
+  const mcards = document.getElementById('fretesCards');
+
+  let lista = [...state.fretes].sort((a,b) => b.data.localeCompare(a.data));
+  if (mes) lista = lista.filter(f => monthKey(f.data) === mes);
+  if (search) lista = lista.filter(f =>
+    f.cliente.toLowerCase().includes(search) ||
+    f.motorista.toLowerCase().includes(search) ||
+    f.origem.toLowerCase().includes(search) ||
+    f.destino.toLowerCase().includes(search)
+  );
+
+  if (lista.length === 0) {
+    const empty = `<div class="empty-state"><div class="icon">🚚</div><div>Nenhum frete cadastrado.</div></div>`;
+    tbody.innerHTML = `<tr><td colspan="13">${empty}</td></tr>`;
+    tfoot.innerHTML = '';
+    mcards.innerHTML = empty;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(f => {
+    const tg = totalGastos(f);
+    const l = lucroFrete(f);
+    return `<tr>
+      <td>${formatDate(f.data)}</td>
+      <td><span class="row-icon-cell"><span class="row-avatar">${escapeHtml(f.cliente.charAt(0).toUpperCase())}</span><strong>${escapeHtml(f.cliente)}</strong></span></td>
+      <td>${escapeHtml(f.motorista)}</td>
+      <td><span style="color:var(--text-muted);font-size:12px;">${escapeHtml(f.origem)}</span> → ${escapeHtml(f.destino)}</td>
+      <td class="num pos">${fmt(f.valor)}</td>
+      <td class="num">${fmt(f.combustivel)}</td>
+      <td class="num">${fmt(f.pedagio)}</td>
+      <td class="num">${fmt(f.comissao)}</td>
+      <td class="num">${fmt(f.alimentacao)}</td>
+      <td class="num">${fmt(f.outros)}</td>
+      <td class="num">${fmt(tg)}</td>
+      <td class="num ${l>=0?'pos':'neg'}">${fmt(l)}</td>
+      <td><button class="icon-btn-trash" onclick="deleteFrete('${f.id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button></td>
+    </tr>`;
+  }).join('');
+
+  const tot = lista.reduce((a, f) => {
+    a.valor += +f.valor||0; a.cb += +f.combustivel||0; a.pg += +f.pedagio||0;
+    a.cm += +f.comissao||0; a.al += +f.alimentacao||0; a.ot += +f.outros||0;
+    a.gt += totalGastos(f); a.lc += lucroFrete(f);
+    return a;
+  }, { valor:0,cb:0,pg:0,cm:0,al:0,ot:0,gt:0,lc:0 });
+
+  tfoot.innerHTML = `<tr style="background:var(--surface-2);font-weight:700;">
+    <td colspan="4" style="padding:14px;">TOTAIS (${lista.length})</td>
+    <td class="num pos">${fmt(tot.valor)}</td>
+    <td class="num">${fmt(tot.cb)}</td><td class="num">${fmt(tot.pg)}</td>
+    <td class="num">${fmt(tot.cm)}</td><td class="num">${fmt(tot.al)}</td>
+    <td class="num">${fmt(tot.ot)}</td><td class="num">${fmt(tot.gt)}</td>
+    <td class="num ${tot.lc>=0?'pos':'neg'}">${fmt(tot.lc)}</td><td></td>
+  </tr>`;
+
+  // Mobile cards
+  mcards.innerHTML = lista.map(f => {
+    const tg = totalGastos(f);
+    const l = lucroFrete(f);
+    return `<div class="mcard">
+      <div class="mcard-head">
+        <div class="mcard-title">
+          <span class="row-avatar">${escapeHtml(f.cliente.charAt(0).toUpperCase())}</span>
+          <div style="flex:1;min-width:0;">
+            <strong>${escapeHtml(f.cliente)}</strong>
+            <div class="mcard-sub">${formatDate(f.data)} • ${escapeHtml(f.motorista)}</div>
+          </div>
+        </div>
+        <button class="icon-btn-trash" onclick="deleteFrete('${f.id}')" aria-label="Excluir"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button>
+      </div>
+      <div class="mcard-route">📍 ${escapeHtml(f.origem)} → ${escapeHtml(f.destino)}</div>
+      <div class="mcard-grid">
+        <span class="l">Valor do Frete</span><span class="v pos">${fmt(f.valor)}</span>
+        ${f.combustivel ? `<span class="l">Combustível</span><span class="v">${fmt(f.combustivel)}</span>` : ''}
+        ${f.pedagio ? `<span class="l">Pedágio</span><span class="v">${fmt(f.pedagio)}</span>` : ''}
+        ${f.comissao ? `<span class="l">Comissão</span><span class="v">${fmt(f.comissao)}</span>` : ''}
+        ${f.alimentacao ? `<span class="l">Alimentação</span><span class="v">${fmt(f.alimentacao)}</span>` : ''}
+        ${f.outros ? `<span class="l">Outros</span><span class="v">${fmt(f.outros)}</span>` : ''}
+        <span class="l">Total Gastos</span><span class="v">${fmt(tg)}</span>
+      </div>
+      <div class="mcard-foot">
+        <span style="color:var(--text-muted);font-size:12px;">Lucro do Frete</span>
+        <span class="${l>=0?'pos':'neg'}" style="font-size:15px;font-weight:700;">${fmt(l)}</span>
+      </div>
+    </div>`;
+  }).join('') + `
+    <div class="mcard-totals">
+      <div class="mcard-totals-title">Totais (${lista.length} ${lista.length===1?'frete':'fretes'})</div>
+      <span class="l">Receita</span><span class="v pos">${fmt(tot.valor)}</span>
+      <span class="l">Total Gastos</span><span class="v">${fmt(tot.gt)}</span>
+      <span class="l">Lucro</span><span class="v ${tot.lc>=0?'pos':'neg'}">${fmt(tot.lc)}</span>
+    </div>`;
+}
+
+/* ============== CONTAS ============== */
+document.getElementById('contaForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  state.contas.unshift({
+    id: id(), data: fd.get('data'),
+    descricao: fd.get('descricao').trim(),
+    categoria: fd.get('categoria'),
+    valor: parseFloat(fd.get('valor'))||0,
+  });
+  save(); e.target.reset(); setDefaultDates();
+  renderContas(); refreshMonthFilters();
+  toast('Conta adicionada!', 'success');
+});
+
+function deleteConta(cid) {
+  showConfirm('Excluir conta', 'Esta ação não pode ser desfeita.', () => {
+    state.contas = state.contas.filter(c => c.id !== cid);
+    save(); renderContas(); refreshMonthFilters(); toast('Conta excluída.', 'success');
+  });
+}
+function clearContaFilters() {
+  document.getElementById('filterConta').value = '';
+  document.getElementById('filterMesConta').value = '';
+  document.getElementById('filterCategoria').value = '';
+  renderContas();
+}
+
+function renderContas() {
+  const search = (document.getElementById('filterConta').value||'').toLowerCase();
+  const mes = document.getElementById('filterMesConta').value;
+  const cat = document.getElementById('filterCategoria').value;
+  const tbody = document.getElementById('contasBody');
+  const tfoot = document.getElementById('contasFoot');
+  const mcards = document.getElementById('contasCards');
+
+  let lista = [...state.contas].sort((a,b) => b.data.localeCompare(a.data));
+  if (mes) lista = lista.filter(c => monthKey(c.data) === mes);
+  if (cat) lista = lista.filter(c => c.categoria === cat);
+  if (search) lista = lista.filter(c => c.descricao.toLowerCase().includes(search) || c.categoria.toLowerCase().includes(search));
+
+  if (lista.length === 0) {
+    const empty = `<div class="empty-state"><div class="icon">💰</div><div>Nenhuma conta cadastrada.</div></div>`;
+    tbody.innerHTML = `<tr><td colspan="5">${empty}</td></tr>`;
+    tfoot.innerHTML = '';
+    mcards.innerHTML = empty;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(c => `<tr>
+    <td>${formatDate(c.data)}</td>
+    <td><span class="row-icon-cell"><span class="row-avatar">${escapeHtml(c.descricao.charAt(0).toUpperCase())}</span><strong>${escapeHtml(c.descricao)}</strong></span></td>
+    <td><span class="tag">${escapeHtml(c.categoria)}</span></td>
+    <td class="num neg">${fmt(c.valor)}</td>
+    <td><button class="icon-btn-trash" onclick="deleteConta('${c.id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button></td>
+  </tr>`).join('');
+
+  const total = lista.reduce((s,c) => s + Number(c.valor||0), 0);
+  tfoot.innerHTML = `<tr style="background:var(--surface-2);font-weight:700;">
+    <td colspan="3" style="padding:14px;">TOTAL (${lista.length})</td>
+    <td class="num neg">${fmt(total)}</td><td></td>
+  </tr>`;
+
+  mcards.innerHTML = lista.map(c => `<div class="mcard">
+    <div class="mcard-head">
+      <div class="mcard-title">
+        <span class="row-avatar">${escapeHtml(c.descricao.charAt(0).toUpperCase())}</span>
+        <div style="flex:1;min-width:0;">
+          <strong>${escapeHtml(c.descricao)}</strong>
+          <div class="mcard-sub">${formatDate(c.data)}</div>
+        </div>
+      </div>
+      <button class="icon-btn-trash" onclick="deleteConta('${c.id}')" aria-label="Excluir"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button>
+    </div>
+    <div class="mcard-foot">
+      <span class="tag">${escapeHtml(c.categoria)}</span>
+      <span class="neg" style="font-size:15px;font-weight:700;">${fmt(c.valor)}</span>
+    </div>
+  </div>`).join('') + `
+  <div class="mcard-totals">
+    <div class="mcard-totals-title">Total (${lista.length} ${lista.length===1?'conta':'contas'})</div>
+    <span class="l">Total Geral</span><span class="v neg">${fmt(total)}</span>
+  </div>`;
+}
+
+/* ============== DASHBOARD ============== */
+function renderDashboard() {
+  const mes = document.getElementById('monthFilter').value;
+  const fretesMes = mes ? state.fretes.filter(f => monthKey(f.data) === mes) : state.fretes;
+  const contasMes = mes ? state.contas.filter(c => monthKey(c.data) === mes) : state.contas;
+
+  const receita = fretesMes.reduce((s,f) => s + Number(f.valor||0), 0);
+  const custosViagem = fretesMes.reduce((s,f) => s + totalGastos(f), 0);
+  const custosFixos = contasMes.reduce((s,c) => s + Number(c.valor||0), 0);
+  const lucro = receita - custosViagem - custosFixos;
+
+  document.getElementById('stat-receita').textContent = fmtShort(receita);
+  document.getElementById('stat-custos-viagem').textContent = fmtShort(custosViagem);
+  document.getElementById('stat-custos-fixos').textContent = fmtShort(custosFixos);
+  document.getElementById('stat-lucro').textContent = fmtShort(Math.abs(lucro));
+  document.getElementById('stat-lucro-label').textContent = lucro >= 0 ? 'Lucro Líquido' : 'Prejuízo';
+  document.getElementById('stat-fretes-count').textContent = fretesMes.length;
+  document.getElementById('periodTag').textContent = mes ? monthLabel(mes) : 'Geral';
+
+  // Gauge: 0-1000 baseado em margem de lucro
+  const margem = receita > 0 ? (lucro / receita) : 0;
+  let score = Math.round(Math.max(0, Math.min(1, (margem + 0.2) / 0.6)) * 1000);
+  if (receita === 0 && custosFixos === 0 && custosViagem === 0) score = 0;
+
+  document.getElementById('gaugeValue').textContent = score;
+  const badge = document.getElementById('gaugeBadge');
+  if (score >= 700) { badge.textContent = 'Excelente'; badge.className = 'gauge-badge low'; }
+  else if (score >= 500) { badge.textContent = 'Saudável'; badge.className = 'gauge-badge mid'; }
+  else if (score >= 300) { badge.textContent = 'Atenção'; badge.className = 'gauge-badge high'; }
+  else { badge.textContent = 'Crítico'; badge.className = 'gauge-badge bad'; }
+
+  drawLineChart();
+  drawDonut(fretesMes, custosFixos);
+  drawGauge(score);
+  renderRecentFretes();
+}
+
+function renderRecentFretes() {
+  const tbody = document.getElementById('recentFretesBody');
+  const mcards = document.getElementById('recentFretesCards');
+  const lista = [...state.fretes].sort((a,b) => b.data.localeCompare(a.data)).slice(0, 5);
+  if (lista.length === 0) {
+    const empty = `<div class="empty-state"><div class="icon">📋</div><div>Nenhum frete cadastrado ainda.</div></div>`;
+    tbody.innerHTML = `<tr><td colspan="6">${empty}</td></tr>`;
+    mcards.innerHTML = empty;
+    return;
+  }
+  tbody.innerHTML = lista.map(f => {
+    const l = lucroFrete(f);
+    return `<tr>
+      <td>${formatDate(f.data)}</td>
+      <td><span class="row-icon-cell"><span class="row-avatar">${escapeHtml(f.cliente.charAt(0).toUpperCase())}</span><strong>${escapeHtml(f.cliente)}</strong></span></td>
+      <td>${escapeHtml(f.motorista)}</td>
+      <td><span style="color:var(--text-muted);font-size:12px;">${escapeHtml(f.origem)}</span> → ${escapeHtml(f.destino)}</td>
+      <td class="num pos">${fmt(f.valor)}</td>
+      <td class="num ${l>=0?'pos':'neg'}">${fmt(l)}</td>
+    </tr>`;
+  }).join('');
+
+  mcards.innerHTML = lista.map(f => {
+    const l = lucroFrete(f);
+    return `<div class="mcard">
+      <div class="mcard-head">
+        <div class="mcard-title">
+          <span class="row-avatar">${escapeHtml(f.cliente.charAt(0).toUpperCase())}</span>
+          <div style="flex:1;min-width:0;">
+            <strong>${escapeHtml(f.cliente)}</strong>
+            <div class="mcard-sub">${formatDate(f.data)} • ${escapeHtml(f.motorista)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="mcard-route">📍 ${escapeHtml(f.origem)} → ${escapeHtml(f.destino)}</div>
+      <div class="mcard-foot">
+        <span class="pos" style="font-size:14px;">${fmt(f.valor)}</span>
+        <span class="${l>=0?'pos':'neg'}" style="font-size:14px;font-weight:700;">${fmt(l)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ============== CHARTS ============== */
+function chartTheme() {
+  const dark = document.documentElement.classList.contains('dark');
+  return {
+    text: dark ? '#cbd5e1' : '#475569',
+    textMuted: dark ? '#8b95a8' : '#64748b',
+    grid: dark ? 'rgba(148,163,184,.08)' : 'rgba(100,116,139,.12)',
+    border: dark ? '#161b26' : '#ffffff',
+    track: dark ? '#1d2330' : '#e2e5ed',
+  };
+}
+
+function drawLineChart() {
+  const t = chartTheme();
+  const meses = collectAllMonths();
+  const labels = meses.map(monthLabel);
+  const receitas = meses.map(m => state.fretes.filter(f => monthKey(f.data)===m).reduce((s,f)=>s+(+f.valor||0), 0));
+  const custos = meses.map(m => {
+    const cv = state.fretes.filter(f => monthKey(f.data)===m).reduce((s,f)=>s+totalGastos(f), 0);
+    const cf = state.contas.filter(c => monthKey(c.data)===m).reduce((s,c)=>s+(+c.valor||0), 0);
+    return cv + cf;
+  });
+
+  const ctx = document.getElementById('chartLine').getContext('2d');
+  if (chartLine) chartLine.destroy();
+
+  // Gradiente roxo para a linha de receita
+  const grad = ctx.createLinearGradient(0, 0, 0, 280);
+  grad.addColorStop(0, 'rgba(139,92,246,.45)');
+  grad.addColorStop(1, 'rgba(139,92,246,0)');
+
+  const gradPink = ctx.createLinearGradient(0, 0, 0, 280);
+  gradPink.addColorStop(0, 'rgba(236,72,153,.25)');
+  gradPink.addColorStop(1, 'rgba(236,72,153,0)');
+
+  chartLine = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels.length ? labels : ['—'],
+      datasets: [
+        {
+          label: 'Receita',
+          data: receitas.length ? receitas : [0],
+          borderColor: '#a855f7',
+          backgroundColor: grad,
+          borderWidth: 3,
+          fill: true,
+          tension: .4,
+          pointBackgroundColor: '#a855f7',
+          pointBorderColor: t.border,
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+        },
+        {
+          label: 'Custos',
+          data: custos.length ? custos : [0],
+          borderColor: '#ec4899',
+          backgroundColor: gradPink,
+          borderWidth: 2,
+          fill: true,
+          tension: .4,
+          pointBackgroundColor: '#ec4899',
+          pointBorderColor: t.border,
+          pointBorderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top', align: 'end',
+          labels: { color: t.text, usePointStyle: true, pointStyle: 'circle', boxWidth: 8, padding: 16 }
+        },
+        tooltip: {
+          backgroundColor: '#1d2330',
+          titleColor: '#fff', bodyColor: '#cbd5e1',
+          borderColor: '#a855f7', borderWidth: 1,
+          padding: 12, cornerRadius: 10, displayColors: true,
+          callbacks: { label: c => `  ${c.dataset.label}: ${fmt(c.parsed.y)}` }
+        }
+      },
+      scales: {
+        x: { ticks: { color: t.textMuted }, grid: { display: false } },
+        y: {
+          ticks: { color: t.textMuted, callback: v => fmtShort(v) },
+          grid: { color: t.grid, drawBorder: false }
+        }
+      }
+    }
+  });
+}
+
+function drawDonut(fretesMes, custosFixos) {
+  const t = chartTheme();
+  const cb = fretesMes.reduce((s,f)=>s+(+f.combustivel||0), 0);
+  const pg = fretesMes.reduce((s,f)=>s+(+f.pedagio||0), 0);
+  const cm = fretesMes.reduce((s,f)=>s+(+f.comissao||0), 0);
+  const al = fretesMes.reduce((s,f)=>s+(+f.alimentacao||0), 0);
+  const ot = fretesMes.reduce((s,f)=>s+(+f.outros||0), 0);
+
+  const items = [
+    { label: 'Combustível', value: cb, color: '#f97316' },
+    { label: 'Pedágio', value: pg, color: '#a855f7' },
+    { label: 'Comissão', value: cm, color: '#ec4899' },
+    { label: 'Alimentação', value: al, color: '#06b6d4' },
+    { label: 'Outros', value: ot, color: '#3b82f6' },
+    { label: 'Contas Fixas', value: custosFixos, color: '#10b981' },
+  ];
+  const total = items.reduce((s,i)=>s+i.value, 0);
+  document.getElementById('donutTotal').textContent = fmtShort(total);
+
+  const ctx = document.getElementById('chartDonut').getContext('2d');
+  if (chartDonut) chartDonut.destroy();
+
+  const data = total === 0 ? [1] : items.map(i => i.value);
+  const colors = total === 0 ? [t.track] : items.map(i => i.color);
+
+  chartDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: total === 0 ? ['Sem dados'] : items.map(i=>i.label),
+      datasets: [{
+        data, backgroundColor: colors,
+        borderColor: t.border, borderWidth: 4,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: total > 0,
+          backgroundColor: '#1d2330', titleColor: '#fff', bodyColor: '#cbd5e1',
+          padding: 12, cornerRadius: 10,
+          callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed)} (${((c.parsed/total)*100).toFixed(1)}%)` }
+        }
+      }
+    }
+  });
+
+  // Legenda customizada
+  const legend = document.getElementById('donutLegend');
+  legend.innerHTML = items.filter(i => i.value > 0).map(i => `
+    <div class="donut-legend-item">
+      <span class="dot" style="background:${i.color}"></span>
+      <span class="name">${i.label}</span>
+      <span class="val">${fmtShort(i.value)}</span>
+    </div>
+  `).join('') || '<div style="text-align:center;color:var(--text-dim);font-size:13px;padding:8px;">Sem custos no período</div>';
+}
+
+function drawGauge(score) {
+  const t = chartTheme();
+  const ctx = document.getElementById('chartGauge').getContext('2d');
+  if (chartGauge) chartGauge.destroy();
+
+  // Gradiente do gauge (laranja -> vermelho na referência)
+  const w = ctx.canvas.width || 200;
+  const grad = ctx.createLinearGradient(0, 0, w, 0);
+  grad.addColorStop(0, '#10b981');
+  grad.addColorStop(0.4, '#f59e0b');
+  grad.addColorStop(0.7, '#f97316');
+  grad.addColorStop(1, '#ef4444');
+
+  chartGauge = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [score, 1000 - score],
+        backgroundColor: [grad, t.track],
+        borderColor: t.border,
+        borderWidth: 0,
+        circumference: 270,
+        rotation: 225,
+        cutout: '78%',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } }
+    }
+  });
+}
+
+function redrawCharts() {
+  if (document.getElementById('panel-dashboard').classList.contains('active')) {
+    renderDashboard();
+  }
+}
+
+/* ============== MONTH FILTERS ============== */
+function collectAllMonths() {
+  const set = new Set();
+  state.fretes.forEach(f => set.add(monthKey(f.data)));
+  state.contas.forEach(c => set.add(monthKey(c.data)));
+  return [...set].filter(Boolean).sort();
+}
+function refreshMonthFilters() {
+  const months = collectAllMonths();
+  const dash = document.getElementById('monthFilter');
+  const fSel = document.getElementById('filterMesFrete');
+  const cSel = document.getElementById('filterMesConta');
+  const dCur = dash.value, fCur = fSel.value, cCur = cSel.value;
+
+  const opts = '<option value="">Todos os meses</option>' + months.map(m => `<option value="${m}">${monthLabel(m)}</option>`).join('');
+  dash.innerHTML = opts; fSel.innerHTML = opts; cSel.innerHTML = opts;
+
+  if (months.includes(dCur)) dash.value = dCur;
+  else if (months.length > 0) dash.value = months[months.length-1];
+  if (months.includes(fCur)) fSel.value = fCur;
+  if (months.includes(cCur)) cSel.value = cCur;
+
+  const cats = [...new Set(state.contas.map(c => c.categoria).filter(Boolean))].sort();
+  const catSel = document.getElementById('filterCategoria');
+  const catCur = catSel.value;
+  catSel.innerHTML = '<option value="">Todas as categorias</option>' + cats.map(c => `<option>${c}</option>`).join('');
+  if (cats.includes(catCur)) catSel.value = catCur;
+}
+
+/* ============== EXPORT / IMPORT JSON ============== */
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fleetflow-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Backup JSON exportado!', 'success');
+}
+function importData(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.fretes || !data.contas) throw new Error();
+      showConfirm('Importar backup', 'Isso vai SUBSTITUIR todos os dados atuais. Continuar?', () => {
+        state = data; save();
+        renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
+        toast('Dados importados!', 'success');
+      });
+    } catch { toast('Arquivo inválido!', 'error'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+/* ============== EXPORT / IMPORT EXCEL ============== */
+function exportExcel() {
+  if (typeof XLSX === 'undefined') { toast('Biblioteca Excel não carregou. Verifique sua internet.', 'error'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // Aba 1: Fretes
+  const fretesData = [...state.fretes]
+    .sort((a,b) => a.data.localeCompare(b.data))
+    .map(f => ({
+      'Data': f.data ? new Date(f.data + 'T12:00:00') : '',
+      'Cliente': f.cliente || '',
+      'Motorista': f.motorista || '',
+      'Origem': f.origem || '',
+      'Destino': f.destino || '',
+      'Valor do Frete': Number(f.valor||0),
+      'Combustível': Number(f.combustivel||0),
+      'Pedágio': Number(f.pedagio||0),
+      'Comissão': Number(f.comissao||0),
+      'Alimentação': Number(f.alimentacao||0),
+      'Outros': Number(f.outros||0),
+      'Total Gastos': totalGastos(f),
+      'Lucro': lucroFrete(f),
+    }));
+
+  if (fretesData.length === 0) {
+    fretesData.push({
+      'Data': '', 'Cliente': '', 'Motorista': '', 'Origem': '', 'Destino': '',
+      'Valor do Frete': 0, 'Combustível': 0, 'Pedágio': 0, 'Comissão': 0,
+      'Alimentação': 0, 'Outros': 0, 'Total Gastos': 0, 'Lucro': 0,
+    });
+  }
+
+  const wsFretes = XLSX.utils.json_to_sheet(fretesData, { cellDates: true });
+  // Larguras de coluna
+  wsFretes['!cols'] = [
+    { wch: 12 }, { wch: 22 }, { wch: 18 }, { wch: 18 }, { wch: 18 },
+    { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 13 },
+    { wch: 12 }, { wch: 14 }, { wch: 14 }
+  ];
+  // Formato de moeda nas colunas numéricas (F a M)
+  formatCurrencyColumns(wsFretes, fretesData.length, ['F','G','H','I','J','K','L','M']);
+  formatDateColumn(wsFretes, fretesData.length, 'A');
+  XLSX.utils.book_append_sheet(wb, wsFretes, 'Fretes');
+
+  // Aba 2: Contas Fixas
+  const contasData = [...state.contas]
+    .sort((a,b) => a.data.localeCompare(b.data))
+    .map(c => ({
+      'Data': c.data ? new Date(c.data + 'T12:00:00') : '',
+      'Descrição': c.descricao || '',
+      'Categoria': c.categoria || '',
+      'Valor': Number(c.valor||0),
+    }));
+  if (contasData.length === 0) {
+    contasData.push({ 'Data': '', 'Descrição': '', 'Categoria': '', 'Valor': 0 });
+  }
+  const wsContas = XLSX.utils.json_to_sheet(contasData, { cellDates: true });
+  wsContas['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 14 }];
+  formatCurrencyColumns(wsContas, contasData.length, ['D']);
+  formatDateColumn(wsContas, contasData.length, 'A');
+  XLSX.utils.book_append_sheet(wb, wsContas, 'Contas Fixas');
+
+  // Aba 3: Resumo Mensal
+  const meses = collectAllMonths();
+  const resumoData = meses.length > 0 ? meses.map(m => {
+    const fr = state.fretes.filter(f => monthKey(f.data) === m);
+    const ct = state.contas.filter(c => monthKey(c.data) === m);
+    const receita = fr.reduce((s,f) => s + (+f.valor||0), 0);
+    const cv = fr.reduce((s,f) => s + totalGastos(f), 0);
+    const cf = ct.reduce((s,c) => s + (+c.valor||0), 0);
+    const lucro = receita - cv - cf;
+    return {
+      'Mês': monthLabel(m),
+      'Qtd Fretes': fr.length,
+      'Receita': receita,
+      'Custos de Viagem': cv,
+      'Custos Fixos': cf,
+      'Lucro Líquido': lucro,
+      'Margem (%)': receita > 0 ? +((lucro/receita)*100).toFixed(2) : 0,
+    };
+  }) : [{ 'Mês': '', 'Qtd Fretes': 0, 'Receita': 0, 'Custos de Viagem': 0, 'Custos Fixos': 0, 'Lucro Líquido': 0, 'Margem (%)': 0 }];
+
+  const wsResumo = XLSX.utils.json_to_sheet(resumoData);
+  wsResumo['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 12 }];
+  formatCurrencyColumns(wsResumo, resumoData.length, ['C','D','E','F']);
+  XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo Mensal');
+
+  const today = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `fleetflow-${today}.xlsx`);
+  toast('Excel exportado com 3 abas!', 'success');
+}
+
+function formatCurrencyColumns(ws, rows, cols) {
+  cols.forEach(col => {
+    for (let r = 2; r <= rows + 1; r++) {
+      const cell = ws[col + r];
+      if (cell && typeof cell.v === 'number') {
+        cell.z = 'R$ #,##0.00';
+        cell.t = 'n';
+      }
+    }
+  });
+}
+function formatDateColumn(ws, rows, col) {
+  for (let r = 2; r <= rows + 1; r++) {
+    const cell = ws[col + r];
+    if (cell && cell.v instanceof Date) {
+      cell.z = 'dd/mm/yyyy';
+      cell.t = 'd';
+    }
+  }
+}
+
+function parseExcelDate(value) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof value === 'number') {
+    // Excel serial date
+    const d = new Date(Math.round((value - 25569) * 86400 * 1000));
+    return d.toISOString().slice(0, 10);
+  }
+  if (typeof value === 'string') {
+    const s = value.trim();
+    // DD/MM/YYYY
+    let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    // YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    // DD-MM-YYYY
+    m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  }
+  return '';
+}
+
+function pickField(row, ...keys) {
+  for (const k of keys) {
+    if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+    // case-insensitive lookup
+    const found = Object.keys(row).find(rk => rk.toLowerCase().trim() === k.toLowerCase().trim());
+    if (found && row[found] !== undefined && row[found] !== null && row[found] !== '') return row[found];
+  }
+  return undefined;
+}
+
+function parseNum(v) {
+  if (v === undefined || v === null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  // "R$ 1.234,56" → 1234.56
+  const cleaned = String(v).replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
+function importExcel(e) {
+  if (typeof XLSX === 'undefined') { toast('Biblioteca Excel não carregou. Verifique sua internet.', 'error'); e.target.value=''; return; }
+  const file = e.target.files[0]; if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, { type: 'array', cellDates: true });
+
+      const novosFretes = [];
+      const novasContas = [];
+
+      // Procurar aba de fretes (case-insensitive)
+      const fretesSheetName = wb.SheetNames.find(n => /frete/i.test(n));
+      if (fretesSheetName) {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[fretesSheetName], { defval: '' });
+        rows.forEach(row => {
+          const data = parseExcelDate(pickField(row, 'Data', 'data'));
+          const cliente = String(pickField(row, 'Cliente', 'cliente') || '').trim();
+          if (!data && !cliente) return; // linha vazia
+          novosFretes.push({
+            id: id(), data,
+            cliente,
+            motorista: String(pickField(row, 'Motorista', 'motorista') || '').trim(),
+            origem: String(pickField(row, 'Origem', 'origem') || '').trim(),
+            destino: String(pickField(row, 'Destino', 'destino') || '').trim(),
+            valor: parseNum(pickField(row, 'Valor do Frete', 'Valor', 'valor')),
+            combustivel: parseNum(pickField(row, 'Combustível', 'Combustivel', 'combustivel')),
+            pedagio: parseNum(pickField(row, 'Pedágio', 'Pedagio', 'pedagio')),
+            comissao: parseNum(pickField(row, 'Comissão', 'Comissao', 'comissao')),
+            alimentacao: parseNum(pickField(row, 'Alimentação', 'Alimentacao', 'alimentacao')),
+            outros: parseNum(pickField(row, 'Outros', 'Outros Gastos', 'outros')),
+          });
+        });
+      }
+
+      // Procurar aba de contas
+      const contasSheetName = wb.SheetNames.find(n => /conta|fixa/i.test(n));
+      if (contasSheetName) {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[contasSheetName], { defval: '' });
+        rows.forEach(row => {
+          const data = parseExcelDate(pickField(row, 'Data', 'data'));
+          const descricao = String(pickField(row, 'Descrição', 'Descricao', 'descricao') || '').trim();
+          if (!data && !descricao) return;
+          novasContas.push({
+            id: id(), data, descricao,
+            categoria: String(pickField(row, 'Categoria', 'categoria') || 'Outros').trim(),
+            valor: parseNum(pickField(row, 'Valor', 'valor')),
+          });
+        });
+      }
+
+      if (novosFretes.length === 0 && novasContas.length === 0) {
+        toast('Nenhum dado válido encontrado. Verifique se o arquivo tem abas "Fretes" e/ou "Contas Fixas".', 'error');
+        return;
+      }
+
+      const msg = `Encontrei ${novosFretes.length} frete(s) e ${novasContas.length} conta(s). Como deseja importar?`;
+      showImportChoice(msg, novosFretes, novasContas);
+    } catch (err) {
+      console.error(err);
+      toast('Erro ao ler o Excel. Verifique o formato.', 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+function showImportChoice(msg, novosFretes, novasContas) {
+  document.getElementById('importMsg').textContent = msg;
+  document.getElementById('importChoiceModal').classList.add('show');
+
+  document.getElementById('importAdd').onclick = () => {
+    state.fretes = [...novosFretes, ...state.fretes];
+    state.contas = [...novasContas, ...state.contas];
+    save();
+    renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
+    hideImportChoice();
+    toast(`${novosFretes.length} fretes e ${novasContas.length} contas adicionados!`, 'success');
+  };
+  document.getElementById('importReplace').onclick = () => {
+    state.fretes = novosFretes;
+    state.contas = novasContas;
+    save();
+    renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
+    hideImportChoice();
+    toast(`Dados substituídos: ${novosFretes.length} fretes, ${novasContas.length} contas`, 'success');
+  };
+}
+function hideImportChoice() {
+  document.getElementById('importChoiceModal').classList.remove('show');
+}
+
+/* ============== INIT ============== */
+load();
+setDefaultDates();
+refreshMonthFilters();
+renderFretes();
+renderContas();
+renderDashboard();
+
+document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+</script>
+</body>
+</html>
