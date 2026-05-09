@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Frete {
+  id          String   @id @default(cuid())
+  data        String
+  cliente     String
+  motorista   String
+  origem      String
+  destino     String
+  valor       Float    @default(0)
+  combustivel Float    @default(0)
+  pedagio     Float    @default(0)
+  comissao    Float    @default(0)
+  alimentacao Float    @default(0)
+  outros      Float    @default(0)
+  kmInicio    Float    @default(0)
+  kmFim       Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([data])
+  @@index([cliente])
+}
+
+model Conta {
+  id        String   @id @default(cuid())
+  data      String
+  descricao String
+  categoria String
+  valor     Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([data])
+  @@index([categoria])
+}

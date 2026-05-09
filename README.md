@@ -498,9 +498,57 @@ Sim, mas cada um terá dados próprios. Use exportar/importar pra sincronizar ma
 
 ```
 transportadora-financeiro/
-├── index.html      ← O sistema completo (abra este arquivo)
-└── README.md       ← Esta documentação
+├── index.html              ← Frontend (HTML + CSS + JS)
+├── server.js               ← Backend Express com rotas /api/*
+├── package.json            ← Dependências Node
+├── prisma/
+│   ├── schema.prisma       ← Modelos Frete e Conta
+│   └── migrations/         ← Migrations versionadas
+├── railway.json            ← Config do deploy no Railway
+├── .env.example            ← Exemplo de variáveis (DATABASE_URL etc)
+└── README.md               ← Esta documentação
 ```
+
+---
+
+## 🚀 Deploy no Railway
+
+### Pré-requisitos
+- Conta no [Railway](https://railway.app)
+- Repositório Git com esses arquivos
+
+### Passo a passo
+
+1. **Cria o projeto no Railway** apontando pro repositório.
+2. **Adiciona Postgres**: clica em "+ New" → "Database" → "Add PostgreSQL".
+3. **Conecta as variáveis**: Railway expõe `DATABASE_URL` automaticamente. Em Settings → Variables do serviço web, garanta que `DATABASE_URL` está referenciando o Postgres (`${{ Postgres.DATABASE_URL }}`).
+4. **Build & deploy**: o `railway.json` já roda `npm install && npx prisma generate && npx prisma migrate deploy` antes de subir o servidor.
+5. **Acessa a URL pública** que o Railway gerou e tá no ar.
+
+### Rodar localmente
+
+```bash
+# 1. Sobe um Postgres local (Docker)
+docker run --name fleetflow-pg -e POSTGRES_PASSWORD=fleetflow -p 5432:5432 -d postgres
+
+# 2. Cria .env com a URL do banco
+echo 'DATABASE_URL="postgresql://postgres:fleetflow@localhost:5432/postgres"' > .env
+
+# 3. Instala deps e roda migrations
+npm install
+npx prisma migrate deploy
+
+# 4. Sobe o servidor
+npm start
+```
+
+Acessa `http://localhost:3000`.
+
+### Modos de operação
+
+- **Online (Railway/Postgres disponível)**: dados ficam no banco, sincronizados entre todos que abrem o site.
+- **Offline (sem internet ou banco fora do ar)**: o app continua funcionando lendo do cache local. Quando voltar online, recarregue a página pra puxar do servidor.
+- **Demo**: ativando o "Modo Demo", o app fica isolado em dados de exemplo locais — não toca no banco.
 
 ---
 
