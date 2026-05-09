@@ -4,10 +4,9 @@
   "description": "FleetFlow - Gestão financeira para transportadora",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "prisma migrate deploy && node server.js",
     "dev": "node server.js",
     "postinstall": "prisma generate",
-    "build": "prisma generate && prisma migrate deploy",
     "db:push": "prisma db push",
     "db:studio": "prisma studio"
   },
