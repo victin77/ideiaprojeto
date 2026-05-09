@@ -709,6 +709,37 @@
   .demo-banner.show { display: flex; }
   .nav-item.demo-active { background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(249,115,22,.1)); color: #f59e0b; }
   .nav-item.demo-active svg { color: #f59e0b; }
+
+  /* ───────── Sync status ───────── */
+  .sync-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .sync-status .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .sync-status.online   { color: #10b981; background: rgba(16,185,129,.1);  border-color: rgba(16,185,129,.25); }
+  .sync-status.offline  { color: #ef4444; background: rgba(239,68,68,.1);  border-color: rgba(239,68,68,.25); }
+  .sync-status.syncing  { color: #a855f7; background: rgba(168,85,247,.1); border-color: rgba(168,85,247,.25); }
+  .sync-status.demo     { color: #f59e0b; background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.25); }
+  .sync-status.syncing .dot { animation: pulse 1s infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .3; }
+  }
+  @media (max-width: 768px) {
+    .sync-status { font-size: 11px; padding: 5px 9px; }
+    .sync-status .dot { width: 6px; height: 6px; }
+  }
   .demo-banner-icon {
     width: 36px; height: 36px;
     border-radius: 10px;
@@ -1048,6 +1079,7 @@
         </div>
       </div>
       <div class="topbar-spacer"></div>
+      <div class="sync-status syncing" id="syncStatus" title="Status de sincronização"><span class="dot"></span> Conectando...</div>
       <button class="icon-btn-circle theme-toggle" id="themeToggle" title="Alternar tema">
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -2271,7 +2303,7 @@ function toggleTheme(e) {
 }
 applyTheme(resolveInitialTheme());
 
-/* ============== STORAGE ============== */
+/* ============== STORAGE (cache local) ============== */
 function load() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -2279,6 +2311,56 @@ function load() {
   } catch (e) {}
 }
 function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+/* ============== API ============== */
+let serverAvailable = false;
+let isSyncing = false;
+
+async function apiCall(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+function shouldUseServer() {
+  return serverAvailable && !isDemoActive();
+}
+
+function setSyncStatus(status) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  el.className = 'sync-status ' + status;
+  if (status === 'online') el.innerHTML = '<span class="dot"></span> Sincronizado';
+  else if (status === 'offline') el.innerHTML = '<span class="dot"></span> Sem conexão (modo cache)';
+  else if (status === 'syncing') el.innerHTML = '<span class="dot"></span> Sincronizando...';
+  else if (status === 'demo') el.innerHTML = '<span class="dot"></span> Modo demo (local)';
+}
+
+async function fetchAllFromServer() {
+  setSyncStatus('syncing');
+  try {
+    const [fretes, contas] = await Promise.all([
+      apiCall('GET', '/api/fretes'),
+      apiCall('GET', '/api/contas'),
+    ]);
+    state = { fretes, contas };
+    serverAvailable = true;
+    save(); // cache local
+    setSyncStatus('online');
+    return true;
+  } catch (err) {
+    console.warn('Servidor indisponível, usando cache local:', err.message);
+    serverAvailable = false;
+    setSyncStatus('offline');
+    return false;
+  }
+}
 
 /* ============== UTILS ============== */
 const fmt = (n) => 'R$ ' + Number(n||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -2333,7 +2415,7 @@ function closeSidebar() { document.getElementById('sidebar').classList.remove('o
 /* ============== FRETES ============== */
 let editingFreteId = null;
 
-document.getElementById('freteForm').addEventListener('submit', (e) => {
+document.getElementById('freteForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   const dados = {
@@ -2352,22 +2434,47 @@ document.getElementById('freteForm').addEventListener('submit', (e) => {
     kmFim: parseFloat(fd.get('kmFim'))||0,
   };
 
-  if (editingFreteId) {
-    const idx = state.fretes.findIndex(f => f.id === editingFreteId);
-    if (idx !== -1) state.fretes[idx] = { ...state.fretes[idx], ...dados };
-    cancelEditFrete(true);
-    toast('Frete atualizado!', 'success');
-  } else {
-    state.fretes.unshift({ id: id(), ...dados });
-    e.target.reset();
-    setDefaultDates();
-    toast('Frete adicionado!', 'success');
-  }
+  const submitBtn = document.getElementById('freteSubmitBtn');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Salvando...';
 
-  save();
-  renderFretes();
-  refreshMonthFilters();
-  if (document.getElementById('panel-dashboard').classList.contains('active')) renderDashboard();
+  try {
+    if (editingFreteId) {
+      let updated;
+      if (shouldUseServer()) {
+        updated = await apiCall('PUT', `/api/fretes/${editingFreteId}`, dados);
+      } else {
+        updated = { ...state.fretes.find(f => f.id === editingFreteId), ...dados };
+      }
+      const idx = state.fretes.findIndex(f => f.id === editingFreteId);
+      if (idx !== -1) state.fretes[idx] = updated;
+      cancelEditFrete(true);
+      toast('Frete atualizado!', 'success');
+    } else {
+      let novo;
+      if (shouldUseServer()) {
+        novo = await apiCall('POST', '/api/fretes', dados);
+      } else {
+        novo = { id: id(), ...dados };
+      }
+      state.fretes.unshift(novo);
+      e.target.reset();
+      setDefaultDates();
+      toast('Frete adicionado!', 'success');
+    }
+
+    save();
+    renderFretes();
+    refreshMonthFilters();
+    if (document.getElementById('panel-dashboard').classList.contains('active')) renderDashboard();
+  } catch (err) {
+    console.error(err);
+    toast('Erro ao salvar: ' + err.message, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+  }
 });
 
 function editFrete(fid) {
@@ -2412,10 +2519,19 @@ function cancelEditFrete(silent) {
 }
 
 function deleteFrete(fid) {
-  showConfirm('Excluir frete', 'Esta ação não pode ser desfeita.', () => {
-    if (editingFreteId === fid) cancelEditFrete();
-    state.fretes = state.fretes.filter(f => f.id !== fid);
-    save(); renderFretes(); refreshMonthFilters(); toast('Frete excluído.', 'success');
+  showConfirm('Excluir frete', 'Esta ação não pode ser desfeita.', async () => {
+    try {
+      if (shouldUseServer()) {
+        await apiCall('DELETE', `/api/fretes/${fid}`);
+      }
+      if (editingFreteId === fid) cancelEditFrete();
+      state.fretes = state.fretes.filter(f => f.id !== fid);
+      save(); renderFretes(); refreshMonthFilters();
+      if (document.getElementById('panel-dashboard').classList.contains('active')) renderDashboard();
+      toast('Frete excluído.', 'success');
+    } catch (err) {
+      toast('Erro ao excluir: ' + err.message, 'error');
+    }
   });
 }
 function clearFreteFilters() {
@@ -2558,7 +2674,7 @@ function renderFretes() {
 /* ============== CONTAS ============== */
 let editingContaId = null;
 
-document.getElementById('contaForm').addEventListener('submit', (e) => {
+document.getElementById('contaForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   const dados = {
@@ -2568,22 +2684,47 @@ document.getElementById('contaForm').addEventListener('submit', (e) => {
     valor: parseFloat(fd.get('valor'))||0,
   };
 
-  if (editingContaId) {
-    const idx = state.contas.findIndex(c => c.id === editingContaId);
-    if (idx !== -1) state.contas[idx] = { ...state.contas[idx], ...dados };
-    cancelEditConta(true);
-    toast('Conta atualizada!', 'success');
-  } else {
-    state.contas.unshift({ id: id(), ...dados });
-    e.target.reset();
-    setDefaultDates();
-    toast('Conta adicionada!', 'success');
-  }
+  const submitBtn = document.getElementById('contaSubmitBtn');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Salvando...';
 
-  save();
-  renderContas();
-  refreshMonthFilters();
-  if (document.getElementById('panel-dashboard').classList.contains('active')) renderDashboard();
+  try {
+    if (editingContaId) {
+      let updated;
+      if (shouldUseServer()) {
+        updated = await apiCall('PUT', `/api/contas/${editingContaId}`, dados);
+      } else {
+        updated = { ...state.contas.find(c => c.id === editingContaId), ...dados };
+      }
+      const idx = state.contas.findIndex(c => c.id === editingContaId);
+      if (idx !== -1) state.contas[idx] = updated;
+      cancelEditConta(true);
+      toast('Conta atualizada!', 'success');
+    } else {
+      let novo;
+      if (shouldUseServer()) {
+        novo = await apiCall('POST', '/api/contas', dados);
+      } else {
+        novo = { id: id(), ...dados };
+      }
+      state.contas.unshift(novo);
+      e.target.reset();
+      setDefaultDates();
+      toast('Conta adicionada!', 'success');
+    }
+
+    save();
+    renderContas();
+    refreshMonthFilters();
+    if (document.getElementById('panel-dashboard').classList.contains('active')) renderDashboard();
+  } catch (err) {
+    console.error(err);
+    toast('Erro ao salvar: ' + err.message, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+  }
 });
 
 function editConta(cid) {
@@ -2618,10 +2759,19 @@ function cancelEditConta(silent) {
 }
 
 function deleteConta(cid) {
-  showConfirm('Excluir conta', 'Esta ação não pode ser desfeita.', () => {
-    if (editingContaId === cid) cancelEditConta();
-    state.contas = state.contas.filter(c => c.id !== cid);
-    save(); renderContas(); refreshMonthFilters(); toast('Conta excluída.', 'success');
+  showConfirm('Excluir conta', 'Esta ação não pode ser desfeita.', async () => {
+    try {
+      if (shouldUseServer()) {
+        await apiCall('DELETE', `/api/contas/${cid}`);
+      }
+      if (editingContaId === cid) cancelEditConta();
+      state.contas = state.contas.filter(c => c.id !== cid);
+      save(); renderContas(); refreshMonthFilters();
+      if (document.getElementById('panel-dashboard').classList.contains('active')) renderDashboard();
+      toast('Conta excluída.', 'success');
+    } catch (err) {
+      toast('Erro ao excluir: ' + err.message, 'error');
+    }
   });
 }
 function clearContaFilters() {
@@ -2757,42 +2907,46 @@ function applyDemoUI(active) {
   }
 }
 
-function toggleDemo() {
+async function toggleDemo() {
   // Cancela qualquer edição pendente pra evitar IDs órfãos
   if (typeof editingFreteId !== 'undefined' && editingFreteId) cancelEditFrete();
   if (typeof editingContaId !== 'undefined' && editingContaId) cancelEditConta();
 
   if (isDemoActive()) {
-    // DESATIVAR: restaura backup do usuário
-    const raw = localStorage.getItem(DEMO_BACKUP_KEY);
-    if (raw) {
-      try {
-        state = JSON.parse(raw);
-      } catch {
-        state = { fretes: [], contas: [] };
-      }
-    } else {
-      state = { fretes: [], contas: [] };
-    }
+    // DESATIVAR: limpa flag de demo, depois recarrega do server (ou cache local)
     localStorage.removeItem(DEMO_FLAG_KEY);
     localStorage.removeItem(DEMO_BACKUP_KEY);
-    save();
     applyDemoUI(false);
+
+    if (serverAvailable) {
+      // Volta a usar dados do servidor
+      await fetchAllFromServer();
+    } else {
+      // Sem server: restaura cache local salvo antes do demo (se existir)
+      const raw = localStorage.getItem(STORE_KEY + '_pre_demo');
+      if (raw) {
+        try { state = JSON.parse(raw); } catch { state = { fretes: [], contas: [] }; }
+        localStorage.removeItem(STORE_KEY + '_pre_demo');
+      } else {
+        state = { fretes: [], contas: [] };
+      }
+      save();
+    }
+
     renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
-    toast('Modo demo desativado. Seus dados originais voltaram.', 'success');
+    toast('Modo demo desativado.', 'success');
   } else {
-    // ATIVAR: salva backup dos dados reais antes de qualquer coisa
+    // ATIVAR: salva backup do cache local (não interfere no banco)
     const currentRaw = localStorage.getItem(STORE_KEY);
-    // Backup defensivo — usa o estado em memória se localStorage falhar
-    const backupStr = currentRaw || JSON.stringify(state || { fretes: [], contas: [] });
-    localStorage.setItem(DEMO_BACKUP_KEY, backupStr);
+    if (currentRaw) localStorage.setItem(STORE_KEY + '_pre_demo', currentRaw);
     localStorage.setItem(DEMO_FLAG_KEY, '1');
 
     state = buildDemoData();
     save();
     applyDemoUI(true);
+    setSyncStatus('demo');
     renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
-    toast('Modo demo ativo. Seus dados estão guardados em segurança.', 'success');
+    toast('Modo demo ativo. Os dados reais no banco não foram tocados.', 'success');
   }
 }
 
@@ -3128,10 +3282,19 @@ function importData(e) {
     try {
       const data = JSON.parse(ev.target.result);
       if (!data.fretes || !data.contas) throw new Error();
-      showConfirm('Importar backup', 'Isso vai SUBSTITUIR todos os dados atuais. Continuar?', () => {
-        state = data; save();
-        renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
-        toast('Dados importados!', 'success');
+      showConfirm('Importar backup', 'Isso vai SUBSTITUIR todos os dados atuais. Continuar?', async () => {
+        try {
+          if (shouldUseServer()) {
+            await apiCall('POST', '/api/bulk', { fretes: data.fretes, contas: data.contas, mode: 'replace' });
+            await fetchAllFromServer();
+          } else {
+            state = data; save();
+          }
+          renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
+          toast('Dados importados!', 'success');
+        } catch (err) {
+          toast('Erro ao importar: ' + err.message, 'error');
+        }
       });
     } catch { toast('Arquivo inválido!', 'error'); }
   };
@@ -3382,35 +3545,121 @@ function showImportChoice(msg, novosFretes, novasContas) {
   document.getElementById('importMsg').textContent = msg;
   document.getElementById('importChoiceModal').classList.add('show');
 
-  document.getElementById('importAdd').onclick = () => {
-    state.fretes = [...novosFretes, ...state.fretes];
-    state.contas = [...novasContas, ...state.contas];
-    save();
-    renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
-    hideImportChoice();
-    toast(`${novosFretes.length} fretes e ${novasContas.length} contas adicionados!`, 'success');
+  document.getElementById('importAdd').onclick = async () => {
+    try {
+      if (shouldUseServer()) {
+        await apiCall('POST', '/api/bulk', { fretes: novosFretes, contas: novasContas, mode: 'add' });
+        await fetchAllFromServer();
+      } else {
+        state.fretes = [...novosFretes, ...state.fretes];
+        state.contas = [...novasContas, ...state.contas];
+        save();
+      }
+      renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
+      hideImportChoice();
+      toast(`${novosFretes.length} fretes e ${novasContas.length} contas adicionados!`, 'success');
+    } catch (err) {
+      toast('Erro ao importar: ' + err.message, 'error');
+    }
   };
-  document.getElementById('importReplace').onclick = () => {
-    state.fretes = novosFretes;
-    state.contas = novasContas;
-    save();
-    renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
-    hideImportChoice();
-    toast(`Dados substituídos: ${novosFretes.length} fretes, ${novasContas.length} contas`, 'success');
+  document.getElementById('importReplace').onclick = async () => {
+    try {
+      if (shouldUseServer()) {
+        await apiCall('POST', '/api/bulk', { fretes: novosFretes, contas: novasContas, mode: 'replace' });
+        await fetchAllFromServer();
+      } else {
+        state.fretes = novosFretes;
+        state.contas = novasContas;
+        save();
+      }
+      renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
+      hideImportChoice();
+      toast(`Dados substituídos: ${novosFretes.length} fretes, ${novasContas.length} contas`, 'success');
+    } catch (err) {
+      toast('Erro ao importar: ' + err.message, 'error');
+    }
   };
 }
 function hideImportChoice() {
   document.getElementById('importChoiceModal').classList.remove('show');
 }
 
+/* ============== MIGRAÇÃO LOCALSTORAGE → BANCO ============== */
+async function maybeOfferMigration() {
+  if (!serverAvailable || isDemoActive()) return;
+
+  const migrated = localStorage.getItem('fleetflow_migrated_to_server');
+  if (migrated === '1') return;
+
+  // Lê dados antigos do localStorage
+  let cached;
+  try { cached = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
+  catch { cached = {}; }
+
+  const cachedFretes = Array.isArray(cached.fretes) ? cached.fretes : [];
+  const cachedContas = Array.isArray(cached.contas) ? cached.contas : [];
+  const totalCached = cachedFretes.length + cachedContas.length;
+
+  // Só oferece se: tem dados em cache E o banco está vazio
+  if (totalCached === 0) {
+    localStorage.setItem('fleetflow_migrated_to_server', '1');
+    return;
+  }
+  if (state.fretes.length > 0 || state.contas.length > 0) {
+    // Banco já tem dados — não pisa em cima. Marca como migrado pra não perguntar de novo.
+    localStorage.setItem('fleetflow_migrated_to_server', '1');
+    return;
+  }
+
+  showConfirm(
+    'Subir dados antigos pra nuvem?',
+    `Encontrei ${cachedFretes.length} frete(s) e ${cachedContas.length} conta(s) salvos só nesse navegador. Deseja subir tudo pro banco agora pra acessar de qualquer aparelho?`,
+    async () => {
+      try {
+        await apiCall('POST', '/api/bulk', { fretes: cachedFretes, contas: cachedContas, mode: 'add' });
+        localStorage.setItem('fleetflow_migrated_to_server', '1');
+        await fetchAllFromServer();
+        renderFretes(); renderContas(); refreshMonthFilters(); renderDashboard();
+        toast('Dados migrados pra nuvem!', 'success');
+      } catch (err) {
+        toast('Erro na migração: ' + err.message, 'error');
+      }
+    }
+  );
+}
+
 /* ============== INIT ============== */
-load();
-setDefaultDates();
-refreshMonthFilters();
-renderFretes();
-renderContas();
-renderDashboard();
-applyDemoUI(isDemoActive());
+async function init() {
+  load(); // carrega cache local primeiro pra UI não ficar vazia
+
+  setDefaultDates();
+  applyDemoUI(isDemoActive());
+
+  // Renderiza cache local imediatamente
+  refreshMonthFilters();
+  renderFretes();
+  renderContas();
+  renderDashboard();
+
+  // Se em demo, fica local
+  if (isDemoActive()) {
+    setSyncStatus('demo');
+    return;
+  }
+
+  // Tenta puxar do servidor
+  const ok = await fetchAllFromServer();
+  if (ok) {
+    refreshMonthFilters();
+    renderFretes();
+    renderContas();
+    renderDashboard();
+    // Pergunta sobre migração se necessário
+    setTimeout(maybeOfferMigration, 800);
+  }
+}
+
+init();
 
 document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 </script>
